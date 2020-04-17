@@ -4,66 +4,141 @@
 
 00 01 => 1     => Get
 00 02 => 2     => Set
+00 03 => 3     => Result
 ff ff => 65535 => Terminate
 
 ## 1B Types:
 
+00 => Null
 01 => String
 02 => Int 64
 03 => Float 64
 04 => Path
 05 => Table
 06 => Bool
-07 => Set
+//07 => Set
+//08 => Array
 
-# Type Format:
+# Type Format:  
+
+Value is [usize Size] [u16 Type] [Content]
+
+-------------------------------------------------------------------------
+## Null
+[Nothing]
+
+## Null Value
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 02) (00 00) () 
+
+-------------------------------------------------------------------------
 
 ## String:
-[u8 Type][u32 Length][Content]
-01 00 00 00 06 61 73 64 66 67 68
+[Content]
+(61 73 64 66 67 68)
 
-## Int 64
-[u8 Type][i64 Content]
-02 00 00 00 00 00 00 00 0a
+## String Value:
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 08) (00 01) (61 73 64 66 67 68) 
 
-## Float 64
-[u8 Type][f64 Content]
-03 00 00 00 00 00 00 00 00
+-------------------------------------------------------------------------
+
+## Int64
+[Content]
+(00 00 00 00 00 00 00 0A)
+
+## Int64 Value:
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 0A) (00 02) (00 00 00 00 00 00 00 0A)
+
+-------------------------------------------------------------------------
+
+## Float64
+[Content]
+(00 00 00 00 00 00 00 00)
+
+## Float64 Value:
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 0A) (00 03) (00 00 00 00 00 00 00 00)
+
+-------------------------------------------------------------------------
 
 ## Path
-[u8 Type][u16 Segment Count][u32 Length][Content]...
-04 00 02 00 00 00 02 61 73 00 00 00 01 61
-|  |     |           |     |           |
-T  Sct   Len         C     Len         C
-T => Type, Sct => Segment count, Len => Length, C => Content
+[Segment Count] [Segment1 Length] [Segment1 Content] [Segment2 Length] [Segment2 Content] ...
+(00 02) (00 00 00 00 00 00 00 06) (61 73 64 66 67 68) (00 00 00 00 00 00 00 03) (97 97 97)
+
+## Path Value
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 1D) (00 04) (00 02) (00 00 00 00 00 00 00 06) (61 73 64 66 67 68) (00 00 00 00 00 00 00 03) (97 97 97)
+
+-------------------------------------------------------------------------
 
 ## Table
-[u8 Type][u32 KV Pair Count][Key Type][String Key][Value Val]...
-05 00 00 00 02 01 00 00 00 02 6b 31 02 00 00 00 00 00 00 00 0a 01 00 00 00 06 61 73 64 66 67 68 02 00 00 00 00 00 00 00 0b
-|  |           |  | strlen    |     |  |i64                    |  |strlen     |                 |  |i64
-T  Kv Ct       Typeof str     cont  typeof value               typeof str     content           typeof value
+[KV Count] [Key1 Length] [Key1 Content] [Value1] ...
+(00 00 00 01) (00 00 00 00 00 00 00 03) (97 97 97) (00 00 00 00 00 00 00 0A) (00 02) (00 00 00 00 00 00 00 0A)
+// Table { "aaa": 10 }
+
+## Table Value
+(00 00 00 00 00 00 00 23) (00 05) (00 00 00 01) (00 00 00 00 00 00 00 03) (97 97 97) (00 00 00 00 00 00 00 0A) (00 02) (00 00 00 00 00 00 00 0A)
+
+-------------------------------------------------------------------------
 
 ## Bool
-[u8 Type][u8 Value]
-06 01
+[Content]
+(01)
+
+## Bool Value
+[Size] [Type] [Content]
+(00 00 00 00 00 00 00 03) (00 06) (01)
+
+-------------------------------------------------------------------------
 
 ## Set
 Work in Progress
 
+-------------------------------------------------------------------------
+
+## Array
+Work in Progress
+
+-------------------------------------------------------------------------
+                            Commands
+-------------------------------------------------------------------------
+
 # Commands:
+// Argument Count of Every Command is Fixed, so there is no need for arg count
+[Size] [Type] [Value1] [Value2]
+
+-------------------------------------------------------------------------
 
 ## Get
-[u16 Command][Type][Path/String]
-00 01 04 04 00 02 00 00 00 02 61 73 00 00 00 01 61  ==>  GET /as/a
-00 01 04 01 00 00 00 03 61 73 64                    ==>  GET asd
+
+Arg1 => (String Value) | (Path Value) //path
+Return => (Result Command)
+
+[Size] [Type] [Path Arg] 
+(00 00 00 00 00 00 00 12) (00 01) (00 00 00 00 00 00 00 08) (00 01) (61 73 64 66 67 68)
+// GET /asdfgh
+
+-------------------------------------------------------------------------
 
 ## Set
-[u16 Command][Path/String][Value]
-00 02 01 00 00 00 03 61 73 64 02 00 00 00 00 00 00 00 0a  ==> SET asd 10
 
+Arg1 => (String Value) | (Path Value) //path
+Arg2 => (Any Value) //value
+Return => (Result Command(Bool))
 
-# Response
+[Size] [Type] [Path Arg] 
+(00 00 00 00 00 00 00 24) (00 01) (00 00 00 00 00 00 00 08) (00 01) (61 73 64 66 67 68) (00 00 00 00 00 00 00 0A) (00 02) (00 00 00 00 00 00 00 0A)
+// SET /asdfgh 10
 
-## ResponseCommands
+-------------------------------------------------------------------------
 
-00 01 => Result
+## Result
+
+Arg1 => (Any Value) //result
+Return => ()
+
+[Size] [Type] [Path Arg] 
+(00 00 00 00 00 00 00 14) (00 01) (00 00 00 00 00 00 00 0A) (00 02) (00 00 00 00 00 00 00 03)
+// Result 3
