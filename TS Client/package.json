@@ -1,0 +1,30 @@
+{
+    "name": "reedis-client-ts",
+    "version": "0.0.1",
+    "description": "A Client For Reedis Storage",
+    "main": "./dist/index.js",
+    "scripts": {
+        "prestart": "npm run build-ts",
+        "start": "node ./dist/index.js",
+        "build-ts": "tsc",
+        "dev": "tsc-watch --onSuccess \"node ./dist/index.js\""
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/occ55/reedis.git"
+    },
+    "author": "Onurcan Camcı",
+    "license": "GPL-3.0-or-later",
+    "bugs": {
+        "url": "https://github.com/occ55/reedis/issues"
+    },
+    "homepage": "https://github.com/occ55/reedis#readme",
+    "dependencies": {
+        "typescript": "^3.8.3"
+    },
+    "devDependencies": {
+        "@types/node": "^13.13.0",
+        "tsc-watch": "^4.2.3",
+        "tslint": "^6.1.1"
+    }
+}
