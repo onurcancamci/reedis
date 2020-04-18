@@ -10,6 +10,12 @@ impl CommandInto {
     pub fn new_raw(command: CommandTypes, args: Vec<DataInto>) -> Self {
         CommandInto { command, args }
     }
+    pub fn new_result(val: Value) -> Self {
+        CommandInto {
+            command: CommandTypes::Result,
+            args: vec![DataInto::new_raw(val.data_type(), val)],
+        }
+    }
 }
 
 impl Command<'_> for CommandInto {

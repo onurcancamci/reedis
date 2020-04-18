@@ -123,7 +123,7 @@ impl<'a> Data<'a> for DataWrapper<'a> {
         }
     }
     fn size(&self) -> usize {
-        println!("dw {}", self.content.len());
+        //println!("dw {}", self.content.len());
         self.content.len()
     }
     fn read_into(&self, buf: &mut [u8]) -> AppResult<()> {

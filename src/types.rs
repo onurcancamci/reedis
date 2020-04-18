@@ -78,7 +78,7 @@ impl Value {
                     .iter()
                     .map(|s| s.as_bytes().len())
                     .fold(0, |acc, sl| acc + sl);
-                SIZE_USIZE * key.len() + str_size_sum + type_size
+                SIZE_USIZE * key.len() + str_size_sum + type_size + 2
             }
             Value::String(s) => s.as_bytes().len() + type_size,
             Value::Table(t) => t.byte_size() + type_size,
@@ -115,14 +115,28 @@ impl Value {
                     buf[ind..(ind + klen)].copy_from_slice(key.as_bytes());
                     ind += klen;
                     let vlen = value.size();
+                    //println!("xxxxxxxxxx {:#?} {:#?}", key, value);
                     buf[ind..(ind + SIZE_USIZE)].copy_from_slice(&vlen.to_le_bytes());
                     ind += SIZE_USIZE;
-                    value.read_into(&mut buf[ind..(ind + vlen)])?;
-                    ind += vlen;
+                    buf[ind..(ind + 2)].copy_from_slice(&(value.data_type() as u16).to_le_bytes()); //value type
+                    ind += 2;
+                    value.read_into(&mut buf[ind..(ind + vlen - 2)])?;
+                    ind += vlen - 2;
                 }
             }
         };
         Ok(())
+    }
+    pub fn data_type(&self) -> DataTypes {
+        match self {
+            Value::Bool(_) => DataTypes::Bool,
+            Value::Float64(_) => DataTypes::Float64,
+            Value::Int64(_) => DataTypes::Int64,
+            Value::Path(_) => DataTypes::Path,
+            Value::String(_) => DataTypes::String,
+            Value::Table(_) => DataTypes::Table,
+            Value::Null => DataTypes::Null,
+        }
     }
 }
 

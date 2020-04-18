@@ -64,6 +64,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let len = sp.read_packet()?;
                     let cw = CommandWrapper::new(&sp.content()?[0..len])?;
                     let result = Executor::execute(&cw, main_table.clone())?;
+                    println!(
+                        "result = {:#?}\n",
+                        result,
+                        //Serializer::serialize(&result)?.as_slice()
+                    );
                     let _ = sp.write(Serializer::serialize(&result)?.as_slice())?;
                     println!("{:#?}", main_table.lock().unwrap())
                 };

@@ -24,7 +24,7 @@ impl Table {
         if key.len() > 0 {
             let curr = key.pop_front().unwrap();
             let val = self.table.get(curr.as_str());
-            if key.len() == 1 {
+            if key.len() == 0 {
                 val
             } else {
                 match val {
@@ -58,7 +58,7 @@ impl Table {
             if key.len() == 0 {
                 self.table.insert(curr, val.clone());
             } else {
-                let existing_table = self.table.get_mut(key.get(0).unwrap());
+                let existing_table = self.table.get_mut(&curr);
                 match existing_table {
                     Some(Value::Table(existing_table)) => {
                         existing_table.set(key, val);
@@ -87,7 +87,7 @@ impl Table {
         size_of::<u32>()
             + self
                 .pairs()
-                .map(|(key, val)| SIZE_USIZE + key.as_bytes().len() + val.size())
+                .map(|(key, val)| SIZE_USIZE * 2 + key.as_bytes().len() + val.size())
                 .fold(0, |acc, e| acc + e)
     }
 }

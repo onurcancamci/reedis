@@ -72,6 +72,7 @@ impl SocketProvider {
         }
     }
     pub fn write(&mut self, buf: &[u8]) -> AppResult<usize> {
+        //println!("writing back {:?}", buf);
         self.socket
             .write(buf)
             .map_err(|_| AppError::SocketWriteError)

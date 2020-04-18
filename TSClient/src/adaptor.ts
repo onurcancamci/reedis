@@ -50,6 +50,16 @@ export class Reedis {
         const buf = Serializer.SerializeCommand(CommandTypes.Set, path, val);
         return Parser.ParseCommand(await this.Exec(buf));
     }
+
+    async Get(path: string | string[] | Path) {
+        await this.connectionPromise;
+        if (typeof path !== "string" && !(path instanceof Path)) {
+            path = new Path(path);
+        }
+        const buf = Serializer.SerializeCommand(CommandTypes.Get, path);
+        return Parser.ParseCommand(await this.Exec(buf));
+    }
+
     private async Exec(buf: Buffer) {
         this.socket.write(buf);
         const result = await this.readPromise;
@@ -64,6 +74,7 @@ export class Reedis {
         });
     }
     private async Read(buf: Buffer) {
+        //console.log(buf);
         if (this.tmpReadStarted) {
             this.tmpReadBuf = Buffer.concat([this.tmpReadBuf, buf]);
             buf = this.tmpReadBuf;

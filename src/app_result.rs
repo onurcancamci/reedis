@@ -14,6 +14,7 @@ pub enum AppError {
     InvalidString,
     InvalidCaommdnForServer,
     SizeCalculationIsInvalid,
+    GetError,
 }
 
 impl Display for AppError {
