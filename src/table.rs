@@ -3,25 +3,22 @@ use std::collections::hash_map::HashMap;
 use std::mem::size_of;
 #[derive(Debug, Clone)]
 pub struct Table {
-    size: usize,
     table: HashMap<String, Value>,
 }
 
 impl Table {
     pub fn new() -> Self {
         Table {
-            size: size_of::<u32>(), // kv_count size
             table: HashMap::new(),
         }
     }
     pub fn with_capacity(capacity: usize) -> Self {
         Table {
-            size: size_of::<u32>(), // kv_count size
             table: HashMap::with_capacity(capacity),
         }
     }
-    pub fn with_hashmap(table: HashMap<String, Value>, size: usize) -> Self {
-        Table { table, size }
+    pub fn with_hashmap(table: HashMap<String, Value>) -> Self {
+        Table { table }
     }
     pub fn get(&self, mut key: VecDeque<String>) -> Option<&Value> {
         if key.len() > 0 {
@@ -57,8 +54,6 @@ impl Table {
     }
     pub fn set(&mut self, mut key: VecDeque<String>, val: &Value) {
         if key.len() > 0 {
-            self.size += SIZE_USIZE + key[0].bytes().len();
-            self.size += val.size();
             let curr = key.pop_front().unwrap();
             if key.len() == 0 {
                 self.table.insert(curr, val.clone());
@@ -89,6 +84,10 @@ impl Table {
     }
 
     pub fn byte_size(&self) -> usize {
-        self.size
+        size_of::<u32>()
+            + self
+                .pairs()
+                .map(|(key, val)| SIZE_USIZE + key.as_bytes().len() + val.size())
+                .fold(0, |acc, e| acc + e)
     }
 }

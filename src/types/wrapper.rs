@@ -118,10 +118,7 @@ impl<'a> Data<'a> for DataWrapper<'a> {
                     let value = val_wrapper.data()?;
                     table.insert(key, value);
                 }
-                Ok(Value::Table(Box::from(Table::with_hashmap(
-                    table,
-                    content.len(),
-                ))))
+                Ok(Value::Table(Box::from(Table::with_hashmap(table))))
             }
         }
     }

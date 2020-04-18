@@ -42,8 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn send() {
     let _ = std::process::Command::new("bash")
         .arg("-c")
-        .arg("cat /home/onurcan/Code/Rust/reedis2/reedis.txt | nc localhost 7071")
-        //.stdout(std::process::Stdio::inherit())
+        .arg("cat /home/onurcan/Code/reedis/reedis.txt | nc localhost 7071")
+        .stdout(std::process::Stdio::null())
         .spawn();
     //println!("{:?}", child.unwrap().stdout.unwrap());
 }
@@ -63,37 +63,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let result: AppResult<()> = try {
                     let len = sp.read_packet()?;
                     let cw = CommandWrapper::new(&sp.content()?[0..len])?;
-                    /* let cw2 = CommandInto::new_raw(
-                        cw.command_type().clone(),
-                        cw.raw_args()
-                            .iter()
-                            .map(|dw| DataInto::new_raw(dw.data_type().clone(), dw.data().unwrap()))
-                            .collect(),
-                    ); */
-                    /* let mut b1 = [0u8; 2048];
-                    let mut b2 = [0u8; 2048];
-                    cw.read_into(&mut b1[0..cw.size()])?;
-                    cw2.read_into(&mut b2[0..cw2.size()])?; */
-                    /* for (i, b) in b1.iter().enumerate() {
-                        println!("{} {}", *b, b2[i]);
-                        if *b != b2[i] {
-                            println!("NOT EQ");
-                        }
-                    } */
-                    /* cw.raw_args().iter().for_each(|a| {
-                        a.size();
-                    });
-                    println!(
-                        "ALL {:?} {:?} \n\n{:#?}\n\n{:#?}",
-                        cw.size(),
-                        cw2.size(),
-                        cw,
-                        cw2
-                    ); */
                     let result = Executor::execute(&cw, main_table.clone())?;
                     let _ = sp.write(Serializer::serialize(&result)?.as_slice())?;
-                    //println!("write len {}", write_len);
-                    //println!("{:#?}", main_table.lock().unwrap())
+                    println!("{:#?}", main_table.lock().unwrap())
                 };
                 if let Err(e) = result {
                     eprintln!(
@@ -102,8 +74,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                         main_table.clone().lock().unwrap().byte_size()
                     );
 
-                    std::process::exit(0);
-                    //return;
+                    //std::process::exit(0);
+                    return;
                 }
             }
         });
@@ -161,6 +133,15 @@ mod test {
         //let mut file = File::create("reedis2.txt")?;
         //file.write_all(out.as_slice())?;
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn f64_test() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buf = [0u8; 8];
+        let mut file = File::open("/home/onurcan/Code/reedis/TSClient/f64.txt")?;
+        file.read_exact(&mut buf).unwrap();
+        println!("{:#?} {:#?}", buf, f64::from_le_bytes(buf));
         Ok(())
     }
 }
