@@ -18,6 +18,7 @@ export enum DataTypes {
     Path = 4,
     Table = 5,
     Bool = 6,
+    Array = 7,
 }
 
 export enum CommandTypes {

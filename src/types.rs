@@ -43,7 +43,7 @@ pub enum DataTypes {
     Path = 0x0004,
     Table = 0x0005,
     Bool = 0x0006,
-    //Set = 0x0007,
+    Array = 0x0007,
 }
 
 impl DataTypes {
@@ -63,6 +63,7 @@ pub enum Value {
     Path(VecDeque<String>),
     Bool(bool),
     Table(Box<Table>),
+    Array(Box<Vec<Value>>),
 }
 
 impl Value {
@@ -82,6 +83,9 @@ impl Value {
             }
             Value::String(s) => s.as_bytes().len() + type_size,
             Value::Table(t) => t.byte_size() + type_size,
+            Value::Array(arr) => {
+                type_size + 4 + SIZE_USIZE * arr.len() + arr.iter().fold(0, |acc, v| acc + v.size())
+            }
         }
     }
     pub fn read_into(&self, buf: &mut [u8]) -> AppResult<()> {
@@ -115,7 +119,20 @@ impl Value {
                     buf[ind..(ind + klen)].copy_from_slice(key.as_bytes());
                     ind += klen;
                     let vlen = value.size();
-                    //println!("xxxxxxxxxx {:#?} {:#?}", key, value);
+                    buf[ind..(ind + SIZE_USIZE)].copy_from_slice(&vlen.to_le_bytes());
+                    ind += SIZE_USIZE;
+                    buf[ind..(ind + 2)].copy_from_slice(&(value.data_type() as u16).to_le_bytes()); //value type
+                    ind += 2;
+                    value.read_into(&mut buf[ind..(ind + vlen - 2)])?;
+                    ind += vlen - 2;
+                }
+            }
+            Value::Array(v) => {
+                let count = v.len();
+                buf[0..4].copy_from_slice(&(count as u32).to_le_bytes());
+                let mut ind = 4;
+                for value in v.iter() {
+                    let vlen = value.size();
                     buf[ind..(ind + SIZE_USIZE)].copy_from_slice(&vlen.to_le_bytes());
                     ind += SIZE_USIZE;
                     buf[ind..(ind + 2)].copy_from_slice(&(value.data_type() as u16).to_le_bytes()); //value type
@@ -136,6 +153,7 @@ impl Value {
             Value::String(_) => DataTypes::String,
             Value::Table(_) => DataTypes::Table,
             Value::Null => DataTypes::Null,
+            Value::Array(_) => DataTypes::Array,
         }
     }
 }

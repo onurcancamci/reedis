@@ -23,6 +23,8 @@
         "@types/binary-parser": "^1.5.0",
         "binary-parser": "^1.6.1",
         "int64-buffer": "^0.99.1007",
+        "redis-typescript": "^0.1.2",
+        "tedis": "^0.1.12",
         "ts-binary-serializer": "^2.1.2",
         "typescript": "^3.8.3"
     },

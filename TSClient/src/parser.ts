@@ -71,6 +71,19 @@ export class Parser {
                     obj[key] = val;
                 }
                 return obj;
+            case DataTypes.Array:
+                const arr: any[] = [];
+                const count = buf.readUInt32LE(10);
+                let inda = 10 + Sizes.u32;
+                for (let k = 0; k < count; k++) {
+                    const aval_size = buf.readUInt32LE(inda);
+                    const aval = Parser.ParseValue(
+                        buf.slice(inda, inda + aval_size + 8),
+                    );
+                    inda += 8 + aval_size;
+                    arr.push(aval);
+                }
+                return arr;
         }
     }
 }

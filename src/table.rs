@@ -3,22 +3,25 @@ use std::collections::hash_map::HashMap;
 use std::mem::size_of;
 #[derive(Debug, Clone)]
 pub struct Table {
+    path: Vec<String>,
     table: HashMap<String, Value>,
 }
 
 impl Table {
-    pub fn new() -> Self {
+    pub fn new(path: Vec<String>) -> Self {
         Table {
             table: HashMap::new(),
+            path,
         }
     }
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(path: Vec<String>, capacity: usize) -> Self {
         Table {
             table: HashMap::with_capacity(capacity),
+            path,
         }
     }
-    pub fn with_hashmap(table: HashMap<String, Value>) -> Self {
-        Table { table }
+    pub fn with_hashmap(path: Vec<String>, table: HashMap<String, Value>) -> Self {
+        Table { table, path }
     }
     pub fn get(&self, mut key: VecDeque<String>) -> Option<&Value> {
         if key.len() > 0 {
@@ -64,7 +67,9 @@ impl Table {
                         existing_table.set(key, val);
                     }
                     None => {
-                        let mut ntable = Table::new();
+                        let mut new_path = self.path.clone();
+                        new_path.push(curr.clone());
+                        let mut ntable = Table::new(new_path);
                         ntable.set(key, val);
                         self.table.insert(curr, Value::Table(Box::from(ntable)));
                     }

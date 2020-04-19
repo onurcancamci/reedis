@@ -134,7 +134,22 @@ export class Serializer {
             Serializer.BuffWrite(buf, Sizes.usize + Sizes.u16, valBuf);
             return buf;
         } else if (typeof val === "object" && Array.isArray(val)) {
-            throw "Not Implemented";
+            let header_buf = Buffer.alloc(8 + 2 + 4);
+            Serializer.TypeWrite(header_buf, 8, DataTypes.Array);
+            Serializer.NumSizeWrite(header_buf, 8 + 2, val.length, Sizes.u32);
+            for (const v of val) {
+                header_buf = Buffer.concat([
+                    header_buf,
+                    Serializer.SerializeValue(v),
+                ]);
+            }
+            Serializer.NumSizeWrite(
+                header_buf,
+                0,
+                header_buf.byteLength - 8,
+                Sizes.usize,
+            );
+            return header_buf;
         } else {
             //table
             const keys = Object.keys(val);

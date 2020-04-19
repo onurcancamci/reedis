@@ -21,9 +21,9 @@ impl Executor {
                     vec.push_back(s);
                     Some(vec)
                 }
-                e => None, //todo: return error
+                _ => None, //todo: return error
             } {
-                return Ok(CommandInto::new_result(
+                return Ok(CommGen::result(
                     table
                         .lock()
                         .unwrap()

@@ -3,6 +3,7 @@
 #![allow(dead_code, unused_imports)]
 
 mod app_result;
+mod command_generator;
 mod executor;
 mod serializer;
 mod socket_provider;
@@ -11,6 +12,7 @@ mod types;
 mod util;
 
 pub use app_result::*;
+pub use command_generator::*;
 pub use executor::*;
 pub use serializer::*;
 pub use socket_provider::*;
@@ -49,7 +51,7 @@ fn send() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let main_table = Arc::from(Mutex::from(Table::new()));
+    let main_table = Arc::from(Mutex::from(Table::new(Vec::new())));
     let listener = TcpListener::bind("127.0.0.1:7071")?;
     //std::thread::Builder::new().spawn(send).unwrap();
 
@@ -64,13 +66,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let len = sp.read_packet()?;
                     let cw = CommandWrapper::new(&sp.content()?[0..len])?;
                     let result = Executor::execute(&cw, main_table.clone())?;
-                    println!(
+                    /* println!(
                         "result = {:#?}\n",
                         result,
                         //Serializer::serialize(&result)?.as_slice()
-                    );
+                    ); */
                     let _ = sp.write(Serializer::serialize(&result)?.as_slice())?;
-                    println!("{:#?}", main_table.lock().unwrap())
+                    //println!("{:#?}", main_table.lock().unwrap())
                 };
                 if let Err(e) = result {
                     eprintln!(
@@ -94,59 +96,5 @@ mod test {
     use std::io::prelude::*;
     use std::net::TcpStream;
 
-    #[tokio::test]
-    async fn write_test() -> Result<(), Box<dyn std::error::Error>> {
-        let mut stream = TcpStream::connect("127.0.0.1:7070")?;
-
-        //set
-        stream.write(&28usize.to_le_bytes())?; //total size
-        stream.write(&2u16.to_le_bytes())?; //command
-        stream.write(&5usize.to_le_bytes())?; //arg1 size
-        stream.write(&1u16.to_le_bytes())?; //key type path/string
-        stream.write(&"xyz".as_bytes())?; //key content
-        stream.write(&5usize.to_le_bytes())?; //arg2 size
-        stream.write(&1u16.to_le_bytes())?; //key type path/string
-        stream.write(&"xyz".as_bytes())?; //key content
-
-        //tokio::spawn(async move { loop {} }).await?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn write_test_file() -> Result<(), Box<dyn std::error::Error>> {
-        let val_proto = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let mut out = vec![];
-        let mut total_size = 0usize;
-        for k in 0..1_000_000 {
-            let path = k.to_string();
-            let path_len = path.as_bytes().len() + 2;
-            let val_len = val_proto.as_bytes().len() + 2;
-            let total_len = 16 + val_len + path_len + 2;
-            total_size += path.as_bytes().len() + 8 + val_len + 8;
-            out.extend_from_slice(&(total_len as usize).to_le_bytes()); //total size
-            out.extend_from_slice(&2u16.to_le_bytes()); //command
-            out.extend_from_slice(&(path_len as usize).to_le_bytes()); //arg1 size
-            out.extend_from_slice(&1u16.to_le_bytes()); //key type path/string
-            out.extend_from_slice(&path.as_bytes()); //key content
-            out.extend_from_slice(&(val_len as usize).to_le_bytes()); //arg2 size
-            out.extend_from_slice(&1u16.to_le_bytes()); //key type path/string
-            out.extend_from_slice(&val_proto.as_bytes()); //key content
-        }
-        out.extend_from_slice(&2usize.to_le_bytes()); //total size
-        out.extend_from_slice(&0xffffu16.to_le_bytes()); //command
-        println!("{}", total_size);
-        //let mut file = File::create("reedis2.txt")?;
-        //file.write_all(out.as_slice())?;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn f64_test() -> Result<(), Box<dyn std::error::Error>> {
-        let mut buf = [0u8; 8];
-        let mut file = File::open("/home/onurcan/Code/reedis/TSClient/f64.txt")?;
-        file.read_exact(&mut buf).unwrap();
-        println!("{:#?} {:#?}", buf, f64::from_le_bytes(buf));
-        Ok(())
-    }
+    //#[tokio:test]
 }

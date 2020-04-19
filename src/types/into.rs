@@ -2,19 +2,13 @@ use crate::*;
 
 #[derive(Debug, Clone)]
 pub struct CommandInto {
-    command: CommandTypes,
-    args: Vec<DataInto>,
+    pub command: CommandTypes,
+    pub args: Vec<DataInto>,
 }
 
 impl CommandInto {
     pub fn new_raw(command: CommandTypes, args: Vec<DataInto>) -> Self {
         CommandInto { command, args }
-    }
-    pub fn new_result(val: Value) -> Self {
-        CommandInto {
-            command: CommandTypes::Result,
-            args: vec![DataInto::new_raw(val.data_type(), val)],
-        }
     }
 }
 
@@ -46,8 +40,8 @@ impl Command<'_> for CommandInto {
 }
 #[derive(Debug, Clone)]
 pub struct DataInto {
-    content: Value,
-    data_type: DataTypes,
+    pub content: Value,
+    pub data_type: DataTypes,
 }
 
 impl DataInto {
