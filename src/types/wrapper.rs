@@ -119,7 +119,7 @@ impl<'a> Data<'a> for DataWrapper<'a> {
                     table.insert(key, value);
                 }
                 Ok(Value::Table(Box::from(Table::with_hashmap(
-                    Vec::new(),
+                    VecDeque::new(),
                     table,
                 ))))
             }
@@ -127,7 +127,7 @@ impl<'a> Data<'a> for DataWrapper<'a> {
                 let count = u32_from(content);
                 let mut ind = size_of::<u32>();
                 let mut arr: Vec<Value> = Vec::with_capacity(count as usize);
-                for _ in 0..count {
+                for k in 0..count {
                     let val_len = usize_from(&content[ind..(ind + SIZE_USIZE)]);
                     ind += SIZE_USIZE;
                     let val_wrapper = DataWrapper::new(&content[ind..(ind + val_len)])?;

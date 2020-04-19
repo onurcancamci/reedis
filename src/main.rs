@@ -3,6 +3,7 @@
 #![allow(dead_code, unused_imports)]
 
 mod app_result;
+mod array;
 mod command_generator;
 mod executor;
 mod serializer;
@@ -12,6 +13,7 @@ mod types;
 mod util;
 
 pub use app_result::*;
+pub use array::*;
 pub use command_generator::*;
 pub use executor::*;
 pub use serializer::*;
@@ -28,6 +30,7 @@ const BUFFER_SIZE: usize = 1024 * 16;
 const SIZE_USIZE: usize = std::mem::size_of::<usize>();
 
 type MainTable = Arc<Mutex<Table>>;
+type TPath = VecDeque<String>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +54,7 @@ fn send() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let main_table = Arc::from(Mutex::from(Table::new(Vec::new())));
+    let main_table = Arc::from(Mutex::from(Table::new(VecDeque::new())));
     let listener = TcpListener::bind("127.0.0.1:7071")?;
     //std::thread::Builder::new().spawn(send).unwrap();
 
@@ -72,7 +75,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                         //Serializer::serialize(&result)?.as_slice()
                     ); */
                     let _ = sp.write(Serializer::serialize(&result)?.as_slice())?;
-                    //println!("{:#?}", main_table.lock().unwrap())
+                    println!("{:#?}", main_table.lock().unwrap())
                 };
                 if let Err(e) = result {
                     eprintln!(
@@ -82,7 +85,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     );
 
                     //std::process::exit(0);
-                    return;
+                    //return;
                 }
             }
         });

@@ -2,7 +2,7 @@ import { Reedis } from "./adaptor";
 import { Int, Path } from "./serializer";
 import { inspect } from "util";
 
-async function allTypes() {
+export async function allTypes() {
     const reedis = new Reedis();
     console.log(await reedis.Set(["a", "b"], true));
     console.log(await reedis.Set(["a", "c"], 10.3));

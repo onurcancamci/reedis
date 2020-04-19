@@ -1,5 +1,7 @@
 {
   "editor.tabSize": 4,
   "editor.insertSpaces": true,
-  "rust-analyzer.inlayHints.chainingHints": false
+  "rust-analyzer.inlayHints.chainingHints": false,
+  "rust-analyzer.inlayHints.typeHints": false,
+  "rust-analyzer.inlayHints.parameterHints": false
 }

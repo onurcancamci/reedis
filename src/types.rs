@@ -60,7 +60,7 @@ pub enum Value {
     String(String),
     Int64(i64),
     Float64(f64),
-    Path(VecDeque<String>),
+    Path(TPath),
     Bool(bool),
     Table(Box<Table>),
     Array(Box<Vec<Value>>),
