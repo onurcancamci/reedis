@@ -14,3 +14,4 @@ yarn.lock
 dist
 package-lock.json
 dump.rdb
+*.swp
