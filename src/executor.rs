@@ -3,7 +3,10 @@ use crate::*;
 pub struct Executor;
 
 impl Executor {
-    pub fn execute<'a>(cw: &'a dyn Command<'a>, table: MainTable) -> AppResult<CommandInto> {
+    pub fn execute<'a>(
+        cw: &'a dyn Command<'a>,
+        table: MainTable,
+    ) -> AppResult<(CommandInto, Vec<EventObj>)> {
         match cw.command_type() {
             CommandTypes::Set => Ok(Executor::set(cw, table)?),
             CommandTypes::Get => Ok(Executor::get(cw, table)?),
@@ -11,7 +14,10 @@ impl Executor {
         }
     }
 
-    pub fn get<'a>(cw: &'a dyn Command<'a>, table: MainTable) -> AppResult<CommandInto> {
+    pub fn get<'a>(
+        cw: &'a dyn Command<'a>,
+        table: MainTable,
+    ) -> AppResult<(CommandInto, Vec<EventObj>)> {
         let mut args = cw.args();
         if let Some(path_arg) = args.get() {
             if let Some(path) = match path_arg.data()? {
@@ -23,20 +29,26 @@ impl Executor {
                 }
                 _ => None, //todo: return error
             } {
-                return Ok(CommGen::result(
-                    table
-                        .lock()
-                        .unwrap()
-                        .get(path.clone())
-                        .map(|val| val.clone())
-                        .unwrap_or(Value::Null),
+                return Ok((
+                    CommGen::result(
+                        table
+                            .read()
+                            .unwrap()
+                            .get(path.clone())
+                            .map(|val| val.clone())
+                            .unwrap_or(Value::Null),
+                    ),
+                    Vec::with_capacity(0),
                 ));
             }
         }
         Err(AppError::GetError)
     }
 
-    pub fn set<'a>(cw: &'a dyn Command<'a>, table: MainTable) -> AppResult<CommandInto> {
+    pub fn set<'a>(
+        cw: &'a dyn Command<'a>,
+        table: MainTable,
+    ) -> AppResult<(CommandInto, Vec<EventObj>)> {
         let mut args = cw.args();
         if let (Some(path_arg), Some(val_arg)) = (args.get(), args.get()) {
             if let Some(path) = match path_arg.data()? {
@@ -48,12 +60,21 @@ impl Executor {
                 }
                 _ => None, //todo: return error
             } {
-                table.lock().unwrap().set(path, &val_arg.data()?);
+                let val = &val_arg.data()?;
+                table.write().unwrap().set(path.clone(), val);
+                return Ok((
+                    CommandInto::new_raw(
+                        CommandTypes::Result,
+                        vec![DataInto::new_raw(DataTypes::Bool, Value::Bool(true))],
+                    ),
+                    /* vec![EventObj::new(path, Event::Change(val.clone()))] */
+                    Vec::with_capacity(0),
+                ));
+            } else {
+                Err(AppError::SetError)
             }
+        } else {
+            Err(AppError::SetError)
         }
-        Ok(CommandInto::new_raw(
-            CommandTypes::Result,
-            vec![DataInto::new_raw(DataTypes::Bool, Value::Bool(true))],
-        ))
     }
 }

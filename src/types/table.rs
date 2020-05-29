@@ -60,6 +60,8 @@ impl Table {
             let curr = key.pop_front().unwrap();
             if key.len() == 0 {
                 let mut to_insert = val.clone();
+                //to spesific before insert stuff
+                //todo: before hooks will be here
                 match &mut to_insert {
                     Value::Array(arr) => {
                         arr.regen_path(self.path.clone());
@@ -71,19 +73,24 @@ impl Table {
                     }
                     _ => {}
                 }
+                //actual insertion of value
+                //this will be called on last path index
                 self.table.insert(curr, to_insert);
             } else {
                 let existing_table = self.table.get_mut(&curr);
                 match existing_table {
                     Some(Value::Table(existing_table)) => {
+                        // Propagate to below
                         existing_table.set(key, val);
                     }
                     None => {
                         let mut new_path = self.path.clone();
                         new_path.push_back(curr.clone());
                         let mut ntable = Table::new(new_path);
+                        //generate new table and propagate below
                         ntable.set(key, val);
                         ntable.regen_path(None);
+                        //add that new table to current
                         self.table.insert(curr, Value::Table(Box::from(ntable)));
                     }
                     Some(_) => {

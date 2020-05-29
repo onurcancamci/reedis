@@ -15,6 +15,8 @@ pub enum AppError {
     InvalidCaommdnForServer,
     SizeCalculationIsInvalid,
     GetError,
+    ChannelWriteError,
+    SetError,
 }
 
 impl Display for AppError {

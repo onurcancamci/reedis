@@ -1,6 +1,8 @@
 mod into;
 mod traits;
 mod wrapper;
+mod table;
+mod array;
 
 use crate::*;
 pub use into::*;
@@ -9,6 +11,9 @@ use std::convert::TryFrom;
 use std::mem::size_of;
 pub use traits::*;
 pub use wrapper::*;
+pub use table::*;
+pub use array::*;
+
 #[derive(Debug, TryFromPrimitive, Clone)]
 #[repr(u16)]
 pub enum CommandTypes {

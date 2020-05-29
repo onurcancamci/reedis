@@ -69,6 +69,7 @@ export class Reedis {
     private async ReadDone(buf: Buffer) {
         this.tmpReadBuf = Buffer.alloc(0);
         this.tmpReadStarted = false;
+        //parse et
         this.readResolve(buf);
         this.readPromise = new Promise((res) => {
             this.readResolve = res;
