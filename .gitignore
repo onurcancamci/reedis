@@ -1,4 +1,4 @@
-/target
+Server/target
 *.txt
 node_modules
 
