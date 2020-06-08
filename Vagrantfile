@@ -8,6 +8,8 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "Server/", "/home/vagrant/Server", create: true
   config.vm.synced_folder "TSClient/", "/home/vagrant/TSClient", create: true
   config.vm.synced_folder "ssh/", "/home/vagrant/.ssh", create: true
+  # Shared ports
+  config.vm.network "forwarded_port", guest: 7071, host: 7071
   # Hardware config
   config.vm.provider "virtualbox" do |v|
     v.name = "dev_machine"
