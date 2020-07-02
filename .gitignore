@@ -1,4 +1,5 @@
 Server/target
+target
 *.txt
 node_modules
 
