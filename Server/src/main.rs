@@ -42,28 +42,28 @@ type TPath = VecDeque<String>;
  * */
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let main_thread = std::thread::Builder::new()
-        .stack_size(STACK_SIZE)
-        .spawn(run)
-        .unwrap();
-
-    let event_th = spawn(|| event_thread());
-    // Wait for thread to join
+    let (ev_sender, ev_receiver) = channel();
+    //let (ev_data_sender, ev_data_receiver) = channel();
+    let (mpsc_sender, mpsc_receiver) = channel();
+    let main_thread = spawn(|| run(ev_sender, mpsc_sender));
+    let event_th = spawn(|| event_thread(ev_receiver, mpsc_receiver));
     main_thread.join().unwrap();
     event_th.join().unwrap();
     Ok(())
 }
 
-fn event_thread() {}
+fn event_thread(ev_receiver: Receiver<CommandInto>, mpsc_receiver: Receiver<Sender<CommandInto>>) {
+    //
+}
 
-fn run() {
+fn run(ev_sender: Sender<CommandInto>, mpsc_sender: Sender<Sender<CommandInto>>) {
     let main_table = Arc::from(Mutex::from(Table::new(VecDeque::new())));
     let _result: Result<(), Box<dyn std::error::Error>> = try {
         let listener = TcpListener::bind("127.0.0.1:7071")?;
         //std::thread::Builder::new().spawn(send).unwrap();
-
         loop {
             let (socket, _) = listener.accept()?;
+            let ev_sender = ev_sender.clone();
             let socket_for_events = match socket.try_clone() {
                 Ok(v) => v,
                 Err(_) => {
@@ -80,6 +80,7 @@ fn run() {
                         let len = sp.read_packet()?;
                         let cw = CommandWrapper::new(&sp.content()?[0..len])?;
                         let result = Executor::execute(&cw, main_table.clone())?;
+
                         println!(
                             "result = {:#?}\n",
                             result,
