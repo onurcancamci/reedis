@@ -1,1 +1,1 @@
-pub struct EventCommand {}
+pub trait EventCommand {}
