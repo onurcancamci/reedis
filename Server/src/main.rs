@@ -1,137 +1,90 @@
-#![feature(try_blocks)]
-#![feature(box_syntax)]
-#![allow(dead_code, unused_imports)]
-
-mod app_result;
-mod array;
-mod command_generator;
-mod executor;
-mod serializer;
-mod socket_provider;
-mod table;
-mod types;
-mod util;
-
-pub use app_result::*;
-pub use array::*;
-pub use command_generator::*;
-pub use executor::*;
-pub use serializer::*;
-pub use socket_provider::*;
-use std::collections::VecDeque;
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::thread::spawn;
-pub use table::*;
-pub use types::*;
-pub use util::*;
 
-const STACK_SIZE: usize = 16 * 1024 * 1024;
-const BUFFER_SIZE: usize = 1024 * 16;
-const SIZE_USIZE: usize = std::mem::size_of::<usize>();
+mod client;
+mod message_types;
 
-type MainTable = Arc<Mutex<Table>>;
-type TPath = VecDeque<String>;
+pub use message_types::*;
 
-/*
- *  ch1: main thread -> event => triggering events
- *  ch2: event -> main thread => sending event data to connected clients
- *  ch3: main thread -> socket thread2
- *
- * */
+fn main() -> std::io::Result<()> {
+    let (tx_register, rx_register) = channel::<(usize, Sender<Event>)>(); //(id, Sender to event socket)
+    let (tx_event, rx_event) = channel::<Event>();
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (ev_sender, ev_receiver) = channel();
-    //let (ev_data_sender, ev_data_receiver) = channel();
-    let (mpsc_sender, mpsc_receiver) = channel();
-    let main_thread = spawn(|| run(ev_sender, mpsc_sender));
-    let event_th = spawn(|| event_thread(ev_receiver, mpsc_receiver));
-    main_thread.join().unwrap();
-    event_th.join().unwrap();
+    spawn(|| {
+        client::event_thread(rx_register, rx_event).expect("Event Thread Crash");
+    });
+    let listener = TcpListener::bind("127.0.0.1:7071")?;
+    for stream in listener.incoming() {
+        let tx_register = tx_register.clone();
+        if let Ok(stream) = stream {
+            spawn(move || {
+                let _ = client::handle_client(stream, tx_register);
+            });
+        }
+    }
     Ok(())
 }
 
-fn event_thread(ev_receiver: Receiver<CommandInto>, mpsc_receiver: Receiver<Sender<CommandInto>>) {
-    //
-}
-
-fn run(ev_sender: Sender<CommandInto>, mpsc_sender: Sender<Sender<CommandInto>>) {
-    let main_table = Arc::from(Mutex::from(Table::new(VecDeque::new())));
-    let _result: Result<(), Box<dyn std::error::Error>> = try {
-        let listener = TcpListener::bind("127.0.0.1:7071")?;
-        //std::thread::Builder::new().spawn(send).unwrap();
-        loop {
-            let (socket, _) = listener.accept()?;
-            let ev_sender = ev_sender.clone();
-            let socket_for_events = match socket.try_clone() {
-                Ok(v) => v,
-                Err(_) => {
-                    eprintln!("Cannot Clone Socket, Closing Connection");
-                    return;
-                }
-            };
-            let main_table = main_table.clone();
-
-            spawn(move || {
-                let mut sp = SocketProvider::new(socket);
-                loop {
-                    let result: AppResult<()> = try {
-                        let len = sp.read_packet()?;
-                        let cw = CommandWrapper::new(&sp.content()?[0..len])?;
-                        let result = Executor::execute(&cw, main_table.clone())?;
-
-                        println!(
-                            "result = {:#?}\n",
-                            result,
-                            //Serializer::serialize(&result)?.as_slice()
-                        );
-                        let _ = sp.write(Serializer::serialize(&result)?.as_slice())?;
-                        println!("{:#?}", main_table.lock().unwrap())
-                    };
-                    if let Err(e) = result {
-                        eprintln!(
-                            "{:#?} {}",
-                            e,
-                            main_table.clone().lock().unwrap().byte_size()
-                        );
-
-                        //std::process::exit(0);
-                        return;
-                    }
-                }
-            });
-            spawn(move || {
-                let socket_for_events = socket_for_events; // moving socket inside
-                let mut sp = SocketProvider::new(socket_for_events);
-                sp.write(
-                    Serializer::serialize(&CommandInto::new_raw(
-                        CommandTypes::Result,
-                        vec![DataInto::new_raw(DataTypes::Null, Value::Null)],
-                    ))
-                    .unwrap()
-                    .as_slice(),
-                )
-            });
-        }
-    };
-}
-
-fn send() {
-    let _ = std::process::Command::new("bash")
-        .arg("-c")
-        .arg("cat /home/onurcan/Code/reedis/reedis.txt | nc localhost 7071")
-        .stdout(std::process::Stdio::null())
-        .spawn();
-    //println!("{:?}", child.unwrap().stdout.unwrap());
-}
-
+#[cfg(test)]
 mod test {
-    use crate::*;
-    use std::collections::HashMap;
-    use std::fs::File;
-    use std::io::prelude::*;
-    use std::net::TcpStream;
 
-    //#[tokio:test]
+    use super::*;
+
+    #[test]
+    fn spin() -> std::io::Result<()> {
+        let listener = TcpListener::bind("127.0.0.1:7071")?;
+        for stream in listener.incoming() {
+            let mut stream = stream.expect("err");
+            stream.set_nonblocking(true).unwrap();
+            //stream
+            //    .set_read_timeout(Some(std::time::Duration::from_millis(2)))
+            //    .unwrap();
+
+            loop {
+                let mut buf = [0; 1024];
+                let res = stream.read(&mut buf);
+                match res {
+                    Ok(len) => println!("READ {}", len),
+                    Err(err) => match err.kind() {
+                        std::io::ErrorKind::WouldBlock => {
+                            //std::thread::sleep_ms(2);
+                            std::thread::park();
+                            //std::thread::yield_now();
+                        }
+                        _ => println!("ERROR"),
+                    },
+                }
+            }
+        }
+        Ok(())
+    }
 }
+
+// structure
+//
+// Comm ---[&[u8]]--> Parser
+// Comm <--[Command]- Parser
+// Comm may consume command to set connections internal state (event/data/disconnect...)
+//
+//
+// Comm(Data):
+// Comm ---[Command]----------> DB
+// Comm <--[Result, Event[]]--- DB
+// Comm ---[Result]-----------> Parser
+// Comm <--[&[u8]]------------- Parser
+// Comm ---[Event[]-----------> Events
+//
+// Comm(Event):
+//
+// Comm ---[Command]----------> Events
+// Events -[Event]------------> Parser
+// Events <[&[u8]]------------- Parser
+// Comm <--[&[u8]]------------- Events
+//
+// Comm may send commands to Events module for configuring what events to receive etc
+//
+// info:
+//
+// 32 bit by default
