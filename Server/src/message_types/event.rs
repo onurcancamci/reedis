@@ -1,5 +1,9 @@
-pub trait Event {}
+pub trait Event {
+    type Content;
 
-pub struct MainEvent {}
+    fn get_target(&self) -> &[usize];
 
-impl Event for MainEvent {}
+    fn get_content(&self) -> &Self::Content;
+}
+
+pub trait EventContent {}
