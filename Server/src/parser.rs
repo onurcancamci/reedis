@@ -1,13 +1,12 @@
 use crate::*;
 
 pub trait Parser {
-    fn parse_command<T>(data: &[u8]) -> Result<T, MyError>
-    where
-        T: Command;
+    type ParsedCommand;
+    type ParsedEvCommand;
 
-    fn parse_ev_command<T>(data: &[u8]) -> Result<T, MyError>
-    where
-        T: EventCommand;
+    fn parse_command(data: &[u8]) -> Result<Self::ParsedCommand, MyError>;
+
+    fn parse_ev_command(data: &[u8]) -> Result<Self::ParsedEvCommand, MyError>;
 
     fn serialize_command_result<CR>(comm: CR) -> Result<Vec<u8>, MyError>
     where

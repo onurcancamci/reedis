@@ -12,32 +12,36 @@ use crate::*;
 use util::read_message;
 
 pub fn handle_client<T, E, P, C, D, CR, CO, EC>(
-    mut stream: T,
+    stream: &mut T,
     tx_register: Sender<(usize, Sender<CO>)>,
     tx_event: Sender<E>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(), MyError>
 where
     T: Read + Write,
     E: Event,
-    P: Parser,
+    P: Parser<ParsedCommand = C, ParsedEvCommand = EC>,
     C: Command,
-    D: Database,
+    D: Database<CommandResult = CR, Event = E>,
     CR: CommandResult,
     CO: EventContent,
     EC: EventCommand,
 {
     // wait for intent, data / event
     let mut intent = [0u8; 1];
-    stream.read_exact(&mut intent)?;
+    stream
+        .read_exact(&mut intent)
+        .map_err(|_| MyError::SocketError)?;
 
     match intent[0] {
         0u8 => {
+            drop(tx_register);
             // version 0, data, language = json
             handle_data::<T, E, P, C, D, CR>(stream, tx_event, db)?;
         }
         1u8 => {
+            drop(tx_event);
             // version 0, event, language = json
             handle_event::<T, P, D, CO, EC>(stream, tx_register, id_counter, db)?;
         }
@@ -52,7 +56,7 @@ where
 pub fn event_thread<V, CO>(
     rx_register: Receiver<(usize, Sender<CO>)>,
     rx_event: Receiver<V>,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(), MyError>
 where
     V: Event<Content = CO>,
     CO: EventContent + Clone + Send + 'static,
@@ -60,83 +64,99 @@ where
     let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<CO>>::new()));
 
     let listeners_register = listeners.clone();
-    spawn(move || loop {
-        let (id, ch) = rx_register.recv().expect("Event thread register listener");
+    let register_handle = spawn(move || loop {
+        let register_res = rx_register.recv();
+        if register_res.is_err() {
+            return MyError::EventChannelClosed;
+        }
+
+        let (id, ch) = register_res.unwrap();
         let mut listeners_guard = listeners_register.lock().unwrap();
         listeners_guard.insert(id, ch);
     });
 
     loop {
-        let ev = rx_event.recv()?;
-        let targets = ev.get_target();
-        if targets.len() > 0 {
-            let listeners_guard = listeners.lock().unwrap();
-            for t in targets {
-                if let Some(listener) = listeners_guard.get(t) {
-                    let content = ev.get_content().clone();
-                    let _ = listener.send(content);
+        let ev = rx_event.recv().map_err(|_| MyError::EventChannelClosed);
+        match ev {
+            Ok(ev) => {
+                let targets = ev.get_target();
+                if targets.len() > 0 {
+                    let listeners_guard = listeners.lock().unwrap();
+
+                    for t in targets {
+                        if let Some(listener) = listeners_guard.get(t) {
+                            let content = ev.get_content().clone();
+                            let _ = listener.send(content);
+                            // listener error might be temporary
+                            // TODO: handle better
+                        }
+                    }
                 }
             }
+            Err(_) => {
+                break;
+            }
         }
-        // send event to its receivers
     }
-
-    //let _ = handle.join();
-    //Ok(())
+    Err(register_handle.join().unwrap())
 }
 
 pub fn handle_data<T, E, P, C, D, CR>(
-    mut stream: T,
+    stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(), MyError>
 where
     T: Read + Write,
     E: Event,
-    P: Parser,
+    P: Parser<ParsedCommand = C>,
     C: Command,
-    D: Database,
+    D: Database<CommandResult = CR, Event = E>,
     CR: CommandResult,
 {
     loop {
-        let msg = read_message(&mut stream)?;
+        let msg = read_message(stream).map_err(|_| MyError::SocketError)?;
         let data = msg.as_slice();
         let comm: C = P::parse_command(&data).unwrap();
         if comm.is_terminate() {
             return Ok(());
         }
-        match db.write().unwrap().run::<C, CR, E>(comm) {
+        match db.write().unwrap().run(comm) {
             Ok((cr, evs)) => {
                 // send result
                 let data = P::serialize_command_result(cr).expect("Command result serialize error");
                 if let Err(_) = stream.write(data.as_slice()) {
                     // assume socket closed
-                    return Ok(());
+                    return Err(MyError::SocketError);
                 }
-                let _ = evs.into_iter().map(|ev| tx_event.send(ev));
+                evs.into_iter().for_each(|ev| {
+                    let _ = tx_event.send(ev);
+                });
             }
-            Err(_) => {}
+            Err(_) => {
+                // TODO: return error to client
+            }
         }
     }
 }
 
 pub fn handle_event<T, P, D, CO, EC>(
-    mut stream: T,
+    stream: &mut T,
     tx_register: Sender<(usize, Sender<CO>)>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(), MyError>
 where
     T: Read + Write,
     CO: EventContent,
-    P: Parser,
+    P: Parser<ParsedEvCommand = EC>,
     EC: EventCommand,
     D: Database,
 {
     //configure event thread
     loop {
-        let data = read_message(&mut stream)?;
-        if let Ok(msg) = P::parse_ev_command::<EC>(data.as_slice()) {
+        let data = read_message(stream).map_err(|_| MyError::SocketError)?;
+        if let Ok(msg) = P::parse_ev_command(data.as_slice()) {
             if msg.is_listen() {
                 break;
             } else {
@@ -152,13 +172,17 @@ where
     let (tx_event_listener, rx_event_listener) = channel();
     tx_register
         .send((id, tx_event_listener))
-        .unwrap_or_else(|_| unimplemented!());
+        .expect("Event thread is not there");
+
+    drop(tx_register);
 
     loop {
-        let msg = rx_event_listener.recv()?;
+        let msg = rx_event_listener
+            .recv()
+            .map_err(|_| MyError::EventChannelClosed)?;
         let data = P::serialize_ev_content(msg).expect("serialize ev content error");
-        if let Err(_) = stream.write(data.as_slice()) {
-            return Ok(());
-        }
+        stream
+            .write(data.as_slice())
+            .map_err(|_| MyError::SocketError)?;
     }
 }
