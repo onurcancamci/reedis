@@ -3,16 +3,13 @@
 //use std::sync::mpsc::{channel, Sender};
 //use std::thread::spawn;
 
+mod common_traits;
 mod communication;
-mod database;
 mod error;
-mod message_types;
-mod parser;
 mod tests;
 
+pub use common_traits::*;
 pub use error::*;
-pub use message_types::*;
-pub use parser::*;
 
 fn main() -> std::io::Result<()> {
     // let (tx_register, rx_register) = channel::<(usize, Sender<MainEvent>)>(); //(id, Sender to event socket)

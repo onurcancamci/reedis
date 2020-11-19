@@ -7,7 +7,7 @@ use std::thread::spawn;
 
 mod util;
 
-use crate::database::Database;
+use crate::common_traits::Database;
 use crate::*;
 use util::read_message;
 

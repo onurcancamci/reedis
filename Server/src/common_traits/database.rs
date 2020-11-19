@@ -1,5 +1,5 @@
+use crate::common_traits::{Command, CommandResult, Event, EventCommand};
 use crate::error::MyError;
-use crate::message_types::{Command, CommandResult, Event, EventCommand};
 
 pub trait Database {
     type CommandResult;

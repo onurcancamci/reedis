@@ -1,7 +1,5 @@
-use crate::database::Database;
+use crate::common_traits::*;
 use crate::error::MyError;
-use crate::message_types::*;
-use crate::parser::Parser;
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
