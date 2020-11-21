@@ -1,4 +1,5 @@
 use crate::common_traits::*;
+use crate::data::*;
 use crate::error::MyError;
 use std::io::{Read, Write};
 
@@ -11,12 +12,28 @@ impl Command for MockCommand {
     fn is_terminate(&self) -> bool {
         self.terminate
     }
+
+    fn is_mutator(&self) -> bool {
+        unreachable!()
+    }
+
+    fn get_path(&self) -> Option<&str> {
+        unreachable!()
+    }
+
+    fn get_operation(&self) -> Operation {
+        unreachable!()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct MockCommandResult {}
 
-impl CommandResult for MockCommandResult {}
+impl CommandResult for MockCommandResult {
+    fn modified_row_count(&self) -> usize {
+        unreachable!()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct MockEvent {
@@ -33,6 +50,10 @@ impl Event for MockEvent {
 
     fn get_content(&self) -> &Self::Content {
         &self.content
+    }
+
+    fn new(path: &str, op: Operation, target: usize) -> Self {
+        unreachable!()
     }
 }
 
@@ -95,8 +116,9 @@ pub struct MockDatabase {}
 impl Database for MockDatabase {
     type CommandResult = MockCommandResult;
     type Event = MockEvent;
+    type Table = MockTable;
 
-    fn run<T>(&mut self, _: T) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError>
+    fn run<T>(&self, _: T) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError>
     where
         T: Command,
     {
@@ -113,7 +135,24 @@ impl Database for MockDatabase {
     where
         EC: EventCommand,
     {
-        //
+    }
+
+    fn table(&self) -> &Self::Table {
+        unreachable!()
+    }
+
+    fn table_mut(&mut self) -> &mut Self::Table {
+        unreachable!()
+    }
+
+    fn run_mutable<T>(
+        &mut self,
+        command: T,
+    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError>
+    where
+        T: Command,
+    {
+        unreachable!()
     }
 }
 
@@ -172,5 +211,82 @@ impl Write for MockTcpStream {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+pub struct MockField;
+
+impl Field for MockField {
+    type Table = MockTable;
+
+    fn child_listener_ct(&self) -> usize {
+        unreachable!()
+    }
+
+    fn set_child_listener_ct(&mut self, _: usize) -> usize {
+        unreachable!()
+    }
+
+    fn get_data(&self) -> &Data<Self::Table> {
+        unreachable!()
+    }
+
+    fn add_listener(&mut self) -> Result<(), MyError> {
+        unreachable!()
+    }
+
+    fn own_listeners(&self) -> Box<dyn Iterator<Item = usize>> {
+        unreachable!()
+    }
+
+    fn get_mut_data(&mut self) -> &mut Data<Self::Table> {
+        unreachable!()
+    }
+
+    fn own_listener_ct(&self) -> usize {
+        unreachable!()
+    }
+
+    fn create_with_data(_: Data<Self::Table>) -> Self {
+        unreachable!()
+    }
+
+    fn remove_listener(&mut self, _: usize) -> Result<(), MyError> {
+        unreachable!()
+    }
+}
+
+pub struct MockTable;
+
+impl Table for MockTable {
+    type Field = MockField;
+    type Event = MockEvent;
+
+    fn new() -> Box<Self> {
+        unreachable!()
+    }
+
+    fn get_field(&self, _: &str) -> Option<&Self::Field> {
+        unreachable!()
+    }
+
+    fn set_field(&mut self, _: &str, _: Self::Field) -> Result<(), MyError> {
+        unreachable!()
+    }
+
+    fn keys_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str>> {
+        unreachable!()
+    }
+
+    fn child_listener_ct(&self) -> usize {
+        unreachable!()
+    }
+
+    fn set_child_listener_ct(&mut self, _: usize) -> usize {
+        unreachable!()
+    }
+
+    fn get_field_mut(&mut self, _: &str) -> Option<&mut Self::Field> {
+        unreachable!()
     }
 }

@@ -5,11 +5,14 @@
 
 mod common_traits;
 mod communication;
+mod data;
 mod error;
 mod tests;
+mod util;
 
 pub use common_traits::*;
 pub use error::*;
+pub use util::*;
 
 fn main() -> std::io::Result<()> {
     // let (tx_register, rx_register) = channel::<(usize, Sender<MainEvent>)>(); //(id, Sender to event socket)

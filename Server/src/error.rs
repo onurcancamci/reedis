@@ -4,4 +4,6 @@ pub enum MyError {
     SocketError,
     EventChannelClosed,
     SocketReadError,
+    KeyNotFound,
+    PathContainsPrimitiveValue,
 }
