@@ -36,7 +36,21 @@ impl Command for MockCommand {
 pub struct MockCommandResult {}
 
 impl CommandResult for MockCommandResult {
+    type Table = MockTable;
+
     fn modified_row_count(&self) -> usize {
+        unreachable!()
+    }
+
+    fn result(&self) -> &ResultTypes<Self::Table> {
+        unreachable!()
+    }
+
+    fn new_data_result(_: Data<Self::Table>, _: usize) -> Self {
+        unreachable!()
+    }
+
+    fn new_empty_result(mod_count: usize) -> Self {
         unreachable!()
     }
 }
@@ -58,7 +72,7 @@ impl Event for MockEvent {
         &self.content
     }
 
-    fn new(path: &str, op: Operation, target: usize) -> Self {
+    fn new(_path: &str, _op: Operation, _target: usize) -> Self {
         unreachable!()
     }
 }
@@ -121,13 +135,11 @@ pub struct MockDatabase {}
 
 impl Database for MockDatabase {
     type CommandResult = MockCommandResult;
+    type Command = MockCommand;
     type Event = MockEvent;
     type Table = MockTable;
 
-    fn run<T>(&self, _: T) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError>
-    where
-        T: Command,
-    {
+    fn run(&self, _: Self::Command) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
         Ok((
             MockCommandResult {},
             vec![MockEvent {
@@ -151,13 +163,10 @@ impl Database for MockDatabase {
         unreachable!()
     }
 
-    fn run_mutable<T>(
+    fn run_mutable(
         &mut self,
-        command: T,
-    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError>
-    where
-        T: Command,
-    {
+        _command: Self::Command,
+    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
         unreachable!()
     }
 }
@@ -220,6 +229,7 @@ impl Write for MockTcpStream {
     }
 }
 
+#[derive(Clone)]
 pub struct MockField;
 
 impl Field for MockField {
@@ -262,6 +272,7 @@ impl Field for MockField {
     }
 }
 
+#[derive(Clone)]
 pub struct MockTable;
 
 impl Table for MockTable {

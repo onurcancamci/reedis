@@ -7,4 +7,5 @@ pub enum MyError {
     KeyNotFound,
     PathContainsPrimitiveValue,
     KeyAlreadyExists,
+    MalformedCommand,
 }

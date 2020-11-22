@@ -11,7 +11,7 @@ use crate::common_traits::Database;
 use crate::*;
 use util::read_message;
 
-pub fn handle_client<T, E, P, C, D, CR, CO, EC>(
+pub fn handle_client<T, E, P, C, D, CR, CO, EC, TA>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<CO>)>,
     tx_event: Sender<E>,
@@ -21,12 +21,12 @@ pub fn handle_client<T, E, P, C, D, CR, CO, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<ParsedCommand = C, ParsedEvCommand = EC>,
-    C: Command,
-    D: Database<CommandResult = CR, Event = E>,
-    CR: CommandResult,
+    P: Parser<ParsedCommand = D::Command, ParsedEvCommand = EC>,
+    D: Database<CommandResult = CR, Event = E, Table = TA>,
+    CR: CommandResult<Table = TA>,
     CO: EventContent,
     EC: EventCommand,
+    TA: Table<Event = E>,
 {
     // wait for intent, data / event
     let mut intent = [0u8; 1];
@@ -38,7 +38,7 @@ where
         0u8 => {
             drop(tx_register);
             // version 0, data, language = json
-            handle_data::<T, E, P, C, D, CR>(stream, tx_event, db)?;
+            handle_data::<T, E, P, D, CR, TA>(stream, tx_event, db)?;
         }
         1u8 => {
             drop(tx_event);
@@ -97,7 +97,7 @@ where
     Err(register_handle.join().unwrap())
 }
 
-pub fn handle_data<T, E, P, C, D, CR>(
+pub fn handle_data<T, E, P, D, CR, TA>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
@@ -105,15 +105,15 @@ pub fn handle_data<T, E, P, C, D, CR>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<ParsedCommand = C>,
-    C: Command,
-    D: Database<CommandResult = CR, Event = E>,
-    CR: CommandResult,
+    P: Parser<ParsedCommand = D::Command>,
+    D: Database<CommandResult = CR, Event = E, Table = TA>,
+    CR: CommandResult<Table = TA>,
+    TA: Table<Event = E>,
 {
     loop {
         let msg = read_message(stream).map_err(|_| MyError::SocketError)?;
         let data = msg.as_slice();
-        let comm: C = P::parse_command(&data).unwrap();
+        let comm: D::Command = P::parse_command(&data).unwrap();
         if comm.is_terminate() {
             return Ok(());
         }

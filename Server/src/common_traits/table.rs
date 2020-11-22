@@ -3,7 +3,7 @@ use crate::data::{Data, DataType};
 use crate::error::MyError;
 use crate::util::*;
 
-pub trait Table: Sized {
+pub trait Table: Sized + Clone {
     type Field: Field<Table = Self>;
     type Event: Event;
 

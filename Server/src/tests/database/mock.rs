@@ -4,6 +4,7 @@ use crate::error::MyError;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
+#[derive(Debug)]
 pub struct MockDatabase {
     table: Box<MockTable>,
 }
@@ -12,6 +13,7 @@ impl Database for MockDatabase {
     type Table = MockTable;
     type Event = MockEvent;
     type CommandResult = MockCommandResult;
+    type Command = MockCommand;
 
     fn table(&self) -> &Self::Table {
         &self.table
@@ -30,6 +32,7 @@ impl MockDatabase {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct MockTable {
     map: HashMap<String, MockField>,
     child_listeners: usize,
@@ -77,6 +80,7 @@ impl Table for MockTable {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct MockField {
     data: Data<MockTable>,
     listeners: HashSet<usize>,
@@ -132,6 +136,7 @@ impl Field for MockField {
     }
 }
 
+#[derive(Debug)]
 pub struct MockEvent {
     target: usize,
     content: MockEventContent,
@@ -159,6 +164,7 @@ impl Event for MockEvent {
     }
 }
 
+#[derive(Debug)]
 pub struct MockEventContent {
     path: String,
     operation: Operation,
@@ -166,6 +172,7 @@ pub struct MockEventContent {
 
 impl EventContent for MockEventContent {}
 
+#[derive(Debug)]
 pub struct MockCommand {
     path: Option<String>,
     terminate: bool,
@@ -209,7 +216,7 @@ impl MockCommand {
         }
     }
 
-    pub fn get(path: &str) -> Self {
+    pub fn new_get(path: &str) -> Self {
         MockCommand {
             path: Some(path.to_string()),
             terminate: false,
@@ -219,23 +226,45 @@ impl MockCommand {
         }
     }
 
-    pub fn set(path: &str, data: Data<MockTable>) -> Self {
+    pub fn new_set(path: &str, data: Data<MockTable>) -> Self {
         MockCommand {
             path: Some(path.to_string()),
             terminate: false,
             operation: Operation::Set,
             mutator: false,
-            args: vec![CommandArg::Data(Data::Int(42))],
+            args: vec![CommandArg::Data(data)],
         }
     }
 }
 
+#[derive(Debug)]
 pub struct MockCommandResult {
     mod_count: usize,
+    result: ResultTypes<MockTable>,
 }
 
 impl CommandResult for MockCommandResult {
+    type Table = MockTable;
+
     fn modified_row_count(&self) -> usize {
         self.mod_count
+    }
+
+    fn result(&self) -> &ResultTypes<Self::Table> {
+        &self.result
+    }
+
+    fn new_data_result(data: Data<Self::Table>, mod_count: usize) -> Self {
+        Self {
+            mod_count,
+            result: ResultTypes::Data(data),
+        }
+    }
+
+    fn new_empty_result(mod_count: usize) -> Self {
+        Self {
+            mod_count,
+            result: ResultTypes::None,
+        }
     }
 }

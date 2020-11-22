@@ -38,6 +38,7 @@ fn simple_flow() {
             MockCommandResult,
             MockEventContent,
             MockEventCommand,
+            MockTable,
         >(
             &mut *c_ev_client_tcp_mut.lock().unwrap(),
             c_tx_register,
@@ -67,6 +68,7 @@ fn simple_flow() {
             MockCommandResult,
             MockEventContent,
             MockEventCommand,
+            MockTable,
         >(
             &mut *c_client_tcp_mut.lock().unwrap(),
             c_tx_register,

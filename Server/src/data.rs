@@ -1,5 +1,6 @@
 use crate::common_traits::*;
 
+#[derive(Clone, Debug)]
 pub enum Data<T>
 where
     T: Table,
@@ -14,7 +15,7 @@ where
     //Set
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum DataType {
     Null,
     Table,
