@@ -55,9 +55,12 @@ pub trait Table: Sized {
 
     fn get_field_mut(&mut self, key: &str) -> Option<&mut Self::Field>;
 
+    ///Sets field  
+    ///
+    ///Returns error if key exists
     fn set_field(&mut self, key: &str, field: Self::Field) -> Result<(), MyError>;
 
-    fn keys_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str>>;
+    fn keys_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str> + 'a>;
 
     fn dec_child_listener_ct(&mut self) -> usize {
         self.set_child_listener_ct(self.child_listener_ct() - 1)
@@ -100,7 +103,7 @@ pub trait Table: Sized {
                     mod_count += 1;
                 }
                 let table_field = self.get_field_mut(key).unwrap_or_else(|| unreachable!());
-                let table = table_field.get_mut_data();
+                let table = table_field.get_data_mut();
                 if let Data::Table(table) = table {
                     let inner_mod_count = table.set((path.0, new_ind), data, events);
                     mod_count += inner_mod_count;

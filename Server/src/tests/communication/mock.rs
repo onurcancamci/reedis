@@ -9,6 +9,8 @@ pub struct MockCommand {
 }
 
 impl Command for MockCommand {
+    type Table = MockTable;
+
     fn is_terminate(&self) -> bool {
         self.terminate
     }
@@ -24,6 +26,10 @@ impl Command for MockCommand {
     fn get_operation(&self) -> Operation {
         unreachable!()
     }
+
+    fn get_args_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommandArg<Self::Table>> + 'a> {
+        unreachable!()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -37,15 +43,15 @@ impl CommandResult for MockCommandResult {
 
 #[derive(Debug, Clone)]
 pub struct MockEvent {
-    targets: Vec<usize>,
+    target: usize,
     content: MockEventContent,
 }
 
 impl Event for MockEvent {
     type Content = MockEventContent;
 
-    fn get_target(&self) -> &[usize] {
-        self.targets.as_slice()
+    fn get_target(&self) -> usize {
+        self.target
     }
 
     fn get_content(&self) -> &Self::Content {
@@ -125,7 +131,7 @@ impl Database for MockDatabase {
         Ok((
             MockCommandResult {},
             vec![MockEvent {
-                targets: vec![0],
+                target: 0,
                 content: MockEventContent {},
             }],
         ))
@@ -231,7 +237,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn add_listener(&mut self) -> Result<(), MyError> {
+    fn add_listener(&mut self, _: usize) {
         unreachable!()
     }
 
@@ -239,7 +245,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn get_mut_data(&mut self) -> &mut Data<Self::Table> {
+    fn get_data_mut(&mut self) -> &mut Data<Self::Table> {
         unreachable!()
     }
 
@@ -251,7 +257,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn remove_listener(&mut self, _: usize) -> Result<(), MyError> {
+    fn remove_listener(&mut self, _: usize) {
         unreachable!()
     }
 }

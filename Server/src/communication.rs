@@ -79,18 +79,14 @@ where
         let ev = rx_event.recv().map_err(|_| MyError::EventChannelClosed);
         match ev {
             Ok(ev) => {
-                let targets = ev.get_target();
-                if targets.len() > 0 {
-                    let listeners_guard = listeners.lock().unwrap();
+                let target = ev.get_target();
+                let listeners_guard = listeners.lock().unwrap();
 
-                    for t in targets {
-                        if let Some(listener) = listeners_guard.get(t) {
-                            let content = ev.get_content().clone();
-                            let _ = listener.send(content);
-                            // listener error might be temporary
-                            // TODO: handle better
-                        }
-                    }
+                if let Some(listener) = listeners_guard.get(&target) {
+                    let content = ev.get_content().clone();
+                    let _ = listener.send(content);
+                    // listener error might be temporary
+                    // TODO: handle better
                 }
             }
             Err(_) => {

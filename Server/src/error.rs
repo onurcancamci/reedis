@@ -6,4 +6,5 @@ pub enum MyError {
     SocketReadError,
     KeyNotFound,
     PathContainsPrimitiveValue,
+    KeyAlreadyExists,
 }
