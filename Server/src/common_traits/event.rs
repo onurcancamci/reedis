@@ -1,7 +1,7 @@
 use crate::common_traits::*;
 
 pub trait Event {
-    type Content: EventContent;
+    type Content: EventContent + Send + Clone + 'static;
 
     fn new(path: &str, op: Operation, target: usize) -> Self;
 

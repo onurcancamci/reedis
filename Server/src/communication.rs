@@ -50,15 +50,14 @@ where
     Ok(())
 }
 
-pub fn event_thread<V, CO>(
-    rx_register: Receiver<(usize, Sender<CO>)>,
+pub fn event_thread<V>(
+    rx_register: Receiver<(usize, Sender<V::Content>)>,
     rx_event: Receiver<V>,
 ) -> Result<(), MyError>
 where
-    V: Event<Content = CO>,
-    CO: EventContent + Clone + Send + 'static,
+    V: Event,
 {
-    let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<CO>>::new()));
+    let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<V::Content>>::new()));
 
     let listeners_register = Arc::clone(&listeners);
     let register_handle = spawn(move || loop {

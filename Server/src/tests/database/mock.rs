@@ -163,7 +163,7 @@ impl Event for MockEvent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MockEventContent {
     path: String,
     operation: Operation,
