@@ -18,4 +18,6 @@ where
     fn serialize_ev_content<CO>(con: CO) -> Result<Vec<u8>, MyError>
     where
         CO: EventContent;
+
+    //TODO: define read_message and read_intent here
 }

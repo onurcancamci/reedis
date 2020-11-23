@@ -1,5 +1,17 @@
 use crate::common_traits::*;
 
+macro_rules! option_field {
+    ($name:ident, $type: path, $ret: ty) => {
+        pub fn $name(&self) -> Option<&$ret> {
+            if let $type(x) = self {
+                Some(x)
+            } else {
+                None
+            }
+        }
+    };
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Data<T>
 where
@@ -43,53 +55,12 @@ where
         }
     }
 
-    pub fn table(&self) -> Option<&Box<T>> {
-        if let Data::Table(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    pub fn int(&self) -> Option<&i32> {
-        if let Data::Int(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    pub fn float(&self) -> Option<&f32> {
-        if let Data::Float(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    pub fn str(&self) -> Option<&str> {
-        if let Data::Str(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    pub fn bool(&self) -> Option<&bool> {
-        if let Data::Bool(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    pub fn array(&self) -> Option<&Vec<Data<T>>> {
-        if let Data::Array(x) = self {
-            Some(x)
-        } else {
-            None
-        }
-    }
+    option_field!(table, Data::Table, Box<T>);
+    option_field!(int, Data::Int, i32);
+    option_field!(float, Data::Float, f32);
+    option_field!(str, Data::Str, str);
+    option_field!(bool, Data::Bool, bool);
+    option_field!(array, Data::Array, Vec<Data<T>>);
 }
 
 // /table1/table2/field
