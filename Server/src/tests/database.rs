@@ -73,3 +73,30 @@ fn set_get_basic_values() {
         }
     }
 }
+
+#[test]
+fn set_get_table() {
+    let mut db = MockDatabase::new();
+
+    let mut table_in = MockTable::new();
+    table_in.insert_data("int", Data::Int(42)).unwrap();
+    let table_compare = table_in.clone();
+
+    let set = MockCommand::new_set("test", Data::Table(table_in));
+    let get = MockCommand::new_get("test");
+    let get_int = MockCommand::new_get("test/int");
+
+    let result = db.run_mutable(set).unwrap();
+    assert_eq!(result.0.modified_row_count(), 1);
+
+    let get_result = db.run(get).unwrap();
+
+    assert_eq!(
+        get_result.0.result().data().unwrap().table().unwrap(),
+        &table_compare
+    );
+
+    let get_result = db.run(get_int).unwrap();
+
+    assert_eq!(get_result.0.result().data().unwrap().int().unwrap(), &42);
+}

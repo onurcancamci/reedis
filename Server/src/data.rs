@@ -1,6 +1,6 @@
 use crate::common_traits::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Data<T>
 where
     T: Table,
@@ -11,7 +11,7 @@ where
     Float(f32),
     Str(String),
     Bool(bool),
-    Array(Vec<Box<Data<T>>>),
+    Array(Vec<Data<T>>),
     //Set
 }
 
@@ -40,6 +40,54 @@ where
             Str(_) => DataType::Str,
             Bool(_) => DataType::Bool,
             Array(_) => DataType::Array,
+        }
+    }
+
+    pub fn table(&self) -> Option<&Box<T>> {
+        if let Data::Table(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn int(&self) -> Option<&i32> {
+        if let Data::Int(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn float(&self) -> Option<&f32> {
+        if let Data::Float(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn str(&self) -> Option<&str> {
+        if let Data::Str(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn bool(&self) -> Option<&bool> {
+        if let Data::Bool(x) = self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
+    pub fn array(&self) -> Option<&Vec<Data<T>>> {
+        if let Data::Array(x) = self {
+            Some(x)
+        } else {
+            None
         }
     }
 }

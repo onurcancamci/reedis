@@ -50,7 +50,7 @@ impl CommandResult for MockCommandResult {
         unreachable!()
     }
 
-    fn new_empty_result(mod_count: usize) -> Self {
+    fn new_empty_result(_: usize) -> Self {
         unreachable!()
     }
 }
@@ -95,11 +95,8 @@ impl EventContent for MockEventContent {}
 
 pub struct MockParser;
 
-impl Parser for MockParser {
-    type ParsedCommand = MockCommand;
-    type ParsedEvCommand = MockEventCommand;
-
-    fn parse_command(data: &[u8]) -> Result<Self::ParsedCommand, MyError> {
+impl Parser<MockCommand, MockEventCommand, MockTable, MockEvent> for MockParser {
+    fn parse_command(data: &[u8]) -> Result<MockCommand, MyError> {
         match data[0] {
             0 => Ok(MockCommand { terminate: false }),
             1 => Ok(MockCommand { terminate: true }),
@@ -107,7 +104,7 @@ impl Parser for MockParser {
         }
     }
 
-    fn parse_ev_command(data: &[u8]) -> Result<Self::ParsedEvCommand, MyError> {
+    fn parse_ev_command(data: &[u8]) -> Result<MockEventCommand, MyError> {
         match data[0] {
             0 => Ok(MockEventCommand { listen: false }),
             1 => Ok(MockEventCommand { listen: true }),
@@ -133,13 +130,12 @@ impl Parser for MockParser {
 #[derive(Debug, Clone)]
 pub struct MockDatabase {}
 
-impl Database for MockDatabase {
+impl Database<MockEvent> for MockDatabase {
     type CommandResult = MockCommandResult;
     type Command = MockCommand;
-    type Event = MockEvent;
     type Table = MockTable;
 
-    fn run(&self, _: Self::Command) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
+    fn run(&self, _: Self::Command) -> Result<(Self::CommandResult, Vec<MockEvent>), MyError> {
         Ok((
             MockCommandResult {},
             vec![MockEvent {
@@ -166,10 +162,12 @@ impl Database for MockDatabase {
     fn run_mutable(
         &mut self,
         _command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
+    ) -> Result<(Self::CommandResult, Vec<MockEvent>), MyError> {
         unreachable!()
     }
 }
+
+impl TableMethods<MockEvent> for MockTable {}
 
 #[derive(Debug, Clone)]
 pub struct MockTcpStream {
@@ -277,7 +275,6 @@ pub struct MockTable;
 
 impl Table for MockTable {
     type Field = MockField;
-    type Event = MockEvent;
 
     fn new() -> Box<Self> {
         unreachable!()

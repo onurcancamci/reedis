@@ -1,7 +1,6 @@
 use crate::common_traits::*;
 use crate::data::{Data, DataType};
 use crate::error::MyError;
-use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
@@ -9,9 +8,8 @@ pub struct MockDatabase {
     table: Box<MockTable>,
 }
 
-impl Database for MockDatabase {
+impl Database<MockEvent> for MockDatabase {
     type Table = MockTable;
-    type Event = MockEvent;
     type CommandResult = MockCommandResult;
     type Command = MockCommand;
 
@@ -32,7 +30,7 @@ impl MockDatabase {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MockTable {
     map: HashMap<String, MockField>,
     child_listeners: usize,
@@ -40,7 +38,6 @@ pub struct MockTable {
 
 impl Table for MockTable {
     type Field = MockField;
-    type Event = MockEvent;
 
     fn new() -> Box<Self> {
         Box::new(MockTable {
@@ -80,7 +77,9 @@ impl Table for MockTable {
     }
 }
 
-#[derive(Clone, Debug)]
+impl TableMethods<MockEvent> for MockTable {}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct MockField {
     data: Data<MockTable>,
     listeners: HashSet<usize>,

@@ -21,12 +21,12 @@ pub fn handle_client<T, E, P, C, D, CR, CO, EC, TA>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<ParsedCommand = D::Command, ParsedEvCommand = EC>,
-    D: Database<CommandResult = CR, Event = E, Table = TA>,
+    P: Parser<D::Command, EC, TA, E>,
+    D: Database<E, CommandResult = CR, Table = TA>,
     CR: CommandResult<Table = TA>,
     CO: EventContent,
     EC: EventCommand,
-    TA: Table<Event = E>,
+    TA: Table + TableMethods<E>,
 {
     // wait for intent, data / event
     let mut intent = [0u8; 1];
@@ -38,12 +38,12 @@ where
         0u8 => {
             drop(tx_register);
             // version 0, data, language = json
-            handle_data::<T, E, P, D, CR, TA>(stream, tx_event, db)?;
+            handle_data::<T, E, P, D, CR, TA, EC>(stream, tx_event, db)?;
         }
         1u8 => {
             drop(tx_event);
             // version 0, event, language = json
-            handle_event::<T, P, D, CO, EC>(stream, tx_register, id_counter, db)?;
+            handle_event::<T, P, D, CO, EC, TA, E, CR>(stream, tx_register, id_counter, db)?;
         }
         _ => {
             return Ok(());
@@ -63,7 +63,7 @@ where
 {
     let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<CO>>::new()));
 
-    let listeners_register = listeners.clone();
+    let listeners_register = Arc::clone(&listeners);
     let register_handle = spawn(move || loop {
         let register_res = rx_register.recv();
         if register_res.is_err() {
@@ -97,7 +97,7 @@ where
     Err(register_handle.join().unwrap())
 }
 
-pub fn handle_data<T, E, P, D, CR, TA>(
+pub fn handle_data<T, E, P, D, CR, TA, EC>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
@@ -105,10 +105,11 @@ pub fn handle_data<T, E, P, D, CR, TA>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<ParsedCommand = D::Command>,
-    D: Database<CommandResult = CR, Event = E, Table = TA>,
+    P: Parser<D::Command, EC, TA, E>,
+    D: Database<E, CommandResult = CR, Table = TA>,
     CR: CommandResult<Table = TA>,
-    TA: Table<Event = E>,
+    TA: Table + TableMethods<E>,
+    EC: EventCommand,
 {
     loop {
         let msg = read_message(stream).map_err(|_| MyError::SocketError)?;
@@ -136,7 +137,7 @@ where
     }
 }
 
-pub fn handle_event<T, P, D, CO, EC>(
+pub fn handle_event<T, P, D, CO, EC, TA, E, CR>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<CO>)>,
     id_counter: Arc<AtomicUsize>,
@@ -145,9 +146,12 @@ pub fn handle_event<T, P, D, CO, EC>(
 where
     T: Read + Write,
     CO: EventContent,
-    P: Parser<ParsedEvCommand = EC>,
+    P: Parser<D::Command, EC, TA, E>,
     EC: EventCommand,
-    D: Database,
+    D: Database<E, CommandResult = CR, Table = TA>,
+    TA: Table + TableMethods<E>,
+    E: Event,
+    CR: CommandResult<Table = TA>,
 {
     //configure event thread
     loop {

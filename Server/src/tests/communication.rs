@@ -3,9 +3,9 @@ mod mock;
 use crate::communication::{event_thread, handle_client};
 use crate::error::MyError;
 use mock::*;
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::sync::atomic::AtomicUsize;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::spawn;
 

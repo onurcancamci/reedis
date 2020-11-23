@@ -4,6 +4,8 @@ use crate::data::*;
 pub trait Command {
     type Table: Table;
 
+    //TODO: for parser, new functions are required
+
     fn is_terminate(&self) -> bool;
 
     fn is_mutator(&self) -> bool;

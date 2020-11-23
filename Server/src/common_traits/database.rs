@@ -1,16 +1,15 @@
 use crate::common_traits::*;
 use crate::error::MyError;
 
-pub trait Database {
+pub trait Database<E>
+where
+    E: Event,
+{
     type CommandResult: CommandResult<Table = Self::Table>;
     type Command: Command<Table = Self::Table>;
-    type Event: Event;
-    type Table: Table<Event = Self::Event>;
+    type Table: Table + TableMethods<E>;
 
-    fn run(
-        &self,
-        command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
+    fn run(&self, command: Self::Command) -> Result<(Self::CommandResult, Vec<E>), MyError> {
         let op = command.get_operation();
         match op {
             Operation::Get => {
@@ -28,7 +27,7 @@ pub trait Database {
     fn run_mutable(
         &mut self,
         command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<Self::Event>), MyError> {
+    ) -> Result<(Self::CommandResult, Vec<E>), MyError> {
         let op = command.get_operation();
         match op {
             Operation::Get => panic!("Wrong run variant"),
@@ -39,7 +38,7 @@ pub trait Database {
                     .ok_or(MyError::MalformedCommand)?
                     .data()
                     .ok_or(MyError::MalformedCommand)?;
-                let mut events: Vec<Self::Event> = vec![];
+                let mut events: Vec<E> = vec![];
                 let mod_count = self.table_mut().set(
                     (command.get_path().ok_or(MyError::MalformedCommand)?, 0),
                     data.clone(),
