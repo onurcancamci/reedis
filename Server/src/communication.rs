@@ -11,9 +11,9 @@ use crate::common_traits::Database;
 use crate::*;
 use util::read_message;
 
-pub fn handle_client<T, E, P, C, D, CR, CO, EC, TA>(
+pub fn handle_client<T, E, P, D, EC>(
     stream: &mut T,
-    tx_register: Sender<(usize, Sender<CO>)>,
+    tx_register: Sender<(usize, Sender<E::Content>)>,
     tx_event: Sender<E>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
@@ -21,12 +21,9 @@ pub fn handle_client<T, E, P, C, D, CR, CO, EC, TA>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, TA, E>,
-    D: Database<E, CommandResult = CR, Table = TA>,
-    CR: CommandResult<Table = TA>,
-    CO: EventContent,
+    P: Parser<D::Command, EC, D::Table, E>,
+    D: Database<E>,
     EC: EventCommand,
-    TA: Table + TableMethods<E>,
 {
     // wait for intent, data / event
     let mut intent = [0u8; 1];
@@ -38,12 +35,12 @@ where
         0u8 => {
             drop(tx_register);
             // version 0, data, language = json
-            handle_data::<T, E, P, D, CR, TA, EC>(stream, tx_event, db)?;
+            handle_data::<T, E, P, D, EC>(stream, tx_event, db)?;
         }
         1u8 => {
             drop(tx_event);
             // version 0, event, language = json
-            handle_event::<T, P, D, CO, EC, TA, E, CR>(stream, tx_register, id_counter, db)?;
+            handle_event::<T, P, D, EC, E>(stream, tx_register, id_counter, db)?;
         }
         _ => {
             return Ok(());
@@ -97,7 +94,7 @@ where
     Err(register_handle.join().unwrap())
 }
 
-pub fn handle_data<T, E, P, D, CR, TA, EC>(
+pub fn handle_data<T, E, P, D, EC>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
@@ -105,10 +102,8 @@ pub fn handle_data<T, E, P, D, CR, TA, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, TA, E>,
-    D: Database<E, CommandResult = CR, Table = TA>,
-    CR: CommandResult<Table = TA>,
-    TA: Table + TableMethods<E>,
+    P: Parser<D::Command, EC, D::Table, E>,
+    D: Database<E>,
     EC: EventCommand,
 {
     loop {
@@ -137,21 +132,18 @@ where
     }
 }
 
-pub fn handle_event<T, P, D, CO, EC, TA, E, CR>(
+pub fn handle_event<T, P, D, EC, E>(
     stream: &mut T,
-    tx_register: Sender<(usize, Sender<CO>)>,
+    tx_register: Sender<(usize, Sender<E::Content>)>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
-    CO: EventContent,
-    P: Parser<D::Command, EC, TA, E>,
+    P: Parser<D::Command, EC, D::Table, E>,
     EC: EventCommand,
-    D: Database<E, CommandResult = CR, Table = TA>,
-    TA: Table + TableMethods<E>,
+    D: Database<E>,
     E: Event,
-    CR: CommandResult<Table = TA>,
 {
     //configure event thread
     loop {
