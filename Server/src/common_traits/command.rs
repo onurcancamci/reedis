@@ -6,6 +6,8 @@ pub trait Command {
 
     //TODO: for parser, new functions are required
 
+    //fn new(op: Operation, path: Option<String>)
+
     fn is_terminate(&self) -> bool;
 
     fn is_mutator(&self) -> bool;

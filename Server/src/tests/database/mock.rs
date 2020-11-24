@@ -266,4 +266,11 @@ impl CommandResult for MockCommandResult {
             result: ResultTypes::None,
         }
     }
+
+    fn new_error_result(err: MyError) -> Self {
+        Self {
+            mod_count: 0,
+            result: ResultTypes::Error(err),
+        }
+    }
 }

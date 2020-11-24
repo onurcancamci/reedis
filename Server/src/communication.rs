@@ -5,11 +5,8 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::spawn;
 
-mod util;
-
 use crate::common_traits::Database;
 use crate::*;
-use util::read_message;
 
 pub fn handle_client<T, E, P, D, EC>(
     stream: &mut T,
@@ -21,29 +18,21 @@ pub fn handle_client<T, E, P, D, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, D::Table, E>,
+    P: Parser<D::Command, EC, D::Table>,
     D: Database<E>,
     EC: EventCommand,
 {
     // wait for intent, data / event
-    let mut intent = [0u8; 1];
-    stream
-        .read_exact(&mut intent)
-        .map_err(|_| MyError::SocketError)?;
+    let intent = P::read_intent(stream)?;
 
-    match intent[0] {
-        0u8 => {
+    match intent {
+        StreamIntent::Data => {
             drop(tx_register);
-            // version 0, data, language = json
             handle_data::<T, E, P, D, EC>(stream, tx_event, db)?;
         }
-        1u8 => {
+        StreamIntent::Event => {
             drop(tx_event);
-            // version 0, event, language = json
             handle_event::<T, P, D, EC, E>(stream, tx_register, id_counter, db)?;
-        }
-        _ => {
-            return Ok(());
         }
     }
 
@@ -101,18 +90,21 @@ pub fn handle_data<T, E, P, D, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, D::Table, E>,
+    P: Parser<D::Command, EC, D::Table>,
     D: Database<E>,
     EC: EventCommand,
 {
     loop {
-        let msg = read_message(stream).map_err(|_| MyError::SocketError)?;
-        let data = msg.as_slice();
-        let comm: D::Command = P::parse_command(&data).unwrap();
+        let comm: D::Command = P::read_command(stream)?;
         if comm.is_terminate() {
             return Ok(());
         }
-        match db.write().unwrap().run(comm) {
+        let q_result = if comm.is_mutator() {
+            db.write().unwrap().run_mutable(comm)
+        } else {
+            db.read().unwrap().run(comm)
+        };
+        match q_result {
             Ok((cr, evs)) => {
                 // send result
                 let data = P::serialize_command_result(cr).expect("Command result serialize error");
@@ -124,8 +116,13 @@ where
                     let _ = tx_event.send(ev);
                 });
             }
-            Err(_) => {
-                // TODO: return error to client
+            Err(err) => {
+                let cr = D::CommandResult::new_error_result(err);
+                let data = P::serialize_command_result(cr).expect("Command result serialize error");
+                if let Err(_) = stream.write(data.as_slice()) {
+                    // assume socket closed
+                    return Err(MyError::SocketError);
+                }
             }
         }
     }
@@ -139,22 +136,18 @@ pub fn handle_event<T, P, D, EC, E>(
 ) -> Result<(), MyError>
 where
     T: Read + Write,
-    P: Parser<D::Command, EC, D::Table, E>,
+    P: Parser<D::Command, EC, D::Table>,
     EC: EventCommand,
     D: Database<E>,
     E: Event,
 {
     //configure event thread
     loop {
-        let data = read_message(stream).map_err(|_| MyError::SocketError)?;
-        if let Ok(msg) = P::parse_ev_command(data.as_slice()) {
-            if msg.is_listen() {
-                break;
-            } else {
-                db.write().unwrap().run_ev_command(msg);
-            }
+        let comm = P::read_ev_command(stream)?;
+        if comm.is_listen() {
+            break;
         } else {
-            return Ok(()); //TODO: parse error
+            db.write().unwrap().run_ev_command(comm);
         }
     }
 

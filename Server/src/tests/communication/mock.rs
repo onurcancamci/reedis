@@ -6,6 +6,7 @@ use std::io::{Read, Write};
 #[derive(Debug, Clone)]
 pub struct MockCommand {
     terminate: bool,
+    mutator: bool,
 }
 
 impl Command for MockCommand {
@@ -16,7 +17,7 @@ impl Command for MockCommand {
     }
 
     fn is_mutator(&self) -> bool {
-        unreachable!()
+        self.mutator
     }
 
     fn get_path(&self) -> Option<&str> {
@@ -51,6 +52,10 @@ impl CommandResult for MockCommandResult {
     }
 
     fn new_empty_result(_: usize) -> Self {
+        unreachable!()
+    }
+
+    fn new_error_result(err: MyError) -> Self {
         unreachable!()
     }
 }
@@ -95,11 +100,17 @@ impl EventContent for MockEventContent {}
 
 pub struct MockParser;
 
-impl Parser<MockCommand, MockEventCommand, MockTable, MockEvent> for MockParser {
+impl Parser<MockCommand, MockEventCommand, MockTable> for MockParser {
     fn parse_command(data: &[u8]) -> Result<MockCommand, MyError> {
         match data[0] {
-            0 => Ok(MockCommand { terminate: false }),
-            1 => Ok(MockCommand { terminate: true }),
+            0 => Ok(MockCommand {
+                terminate: false,
+                mutator: false,
+            }),
+            1 => Ok(MockCommand {
+                terminate: true,
+                mutator: false,
+            }),
             _ => Err(MyError::TODO),
         }
     }
@@ -124,6 +135,43 @@ impl Parser<MockCommand, MockEventCommand, MockTable, MockEvent> for MockParser 
         CR: CommandResult,
     {
         Ok(vec![33u8])
+    }
+
+    fn read_intent<S>(stream: &mut S) -> Result<StreamIntent, MyError>
+    where
+        S: Read,
+    {
+        let mut intent = [0u8; 1];
+        stream
+            .read_exact(&mut intent)
+            .map_err(|_| MyError::SocketReadError)?;
+
+        match intent[0] {
+            0 => Ok(StreamIntent::Data),
+            1 => Ok(StreamIntent::Event),
+            _ => Err(MyError::MalformedCommand),
+        }
+    }
+
+    fn read_command<S>(stream: &mut S) -> Result<MockCommand, MyError>
+    where
+        S: Read,
+    {
+        let mut buf = [0u8; 1];
+        stream
+            .read_exact(&mut buf)
+            .map_err(|_| MyError::SocketReadError)?;
+        Self::parse_command(&buf)
+    }
+    fn read_ev_command<S>(stream: &mut S) -> Result<MockEventCommand, MyError>
+    where
+        S: Read,
+    {
+        let mut buf = [0u8; 1];
+        stream
+            .read_exact(&mut buf)
+            .map_err(|_| MyError::SocketReadError)?;
+        Self::parse_ev_command(&buf)
     }
 }
 

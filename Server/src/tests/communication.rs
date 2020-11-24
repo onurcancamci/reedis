@@ -20,7 +20,7 @@ fn simple_flow() {
 
     // Event listener client
 
-    let ev_client_tcp = MockTcpStream::new(vec![1, 1, 0, 0, 0, 1], 10); // ev channel, 1 listen
+    let ev_client_tcp = MockTcpStream::new(vec![1, 1], 10); // ev channel, 1 listen
     let ev_client_tcp_mut = Arc::new(Mutex::new(ev_client_tcp));
     let c_ev_client_tcp_mut = ev_client_tcp_mut.clone();
 
@@ -40,7 +40,7 @@ fn simple_flow() {
 
     std::thread::sleep(std::time::Duration::from_millis(200));
 
-    let client_tcp = MockTcpStream::new(vec![0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1], 10); // data channel, 1 non-terminate, 1 (terminate)
+    let client_tcp = MockTcpStream::new(vec![0, 0, 1], 10); // data channel, 1 non-terminate, 1 (terminate)
     let client_tcp_mut = Arc::new(Mutex::new(client_tcp));
     let c_client_tcp_mut = client_tcp_mut.clone();
 

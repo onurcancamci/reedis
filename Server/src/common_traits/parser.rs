@@ -1,7 +1,8 @@
 use crate::common_traits::*;
 use crate::error::MyError;
+use std::io::Read;
 
-pub trait Parser<PC, PE, T, E>
+pub trait Parser<PC, PE, T>
 where
     PC: Command<Table = T>,
     PE: EventCommand,
@@ -19,5 +20,20 @@ where
     where
         CO: EventContent;
 
-    //TODO: define read_message and read_intent here
+    fn read_command<S>(stream: &mut S) -> Result<PC, MyError>
+    where
+        S: Read;
+
+    fn read_ev_command<S>(stream: &mut S) -> Result<PE, MyError>
+    where
+        S: Read;
+
+    fn read_intent<S>(stream: &mut S) -> Result<StreamIntent, MyError>
+    where
+        S: Read;
+}
+
+pub enum StreamIntent {
+    Data,
+    Event,
 }

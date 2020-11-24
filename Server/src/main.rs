@@ -7,6 +7,7 @@ mod common_traits;
 mod communication;
 mod data;
 mod error;
+mod parsers;
 mod tests;
 mod util;
 
