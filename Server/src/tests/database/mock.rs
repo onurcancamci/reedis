@@ -77,7 +77,10 @@ impl Table for MockTable {
     }
 }
 
-impl TableMethods<MockEvent> for MockTable {}
+impl TableMethods<MockEvent> for MockTable {
+    type Command = MockCommand;
+    type CommandResult = MockCommandResult;
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MockField {
@@ -109,12 +112,12 @@ impl Field for MockField {
         self.data.data_type()
     }
 
-    fn add_listener(&mut self, listener: usize) {
-        self.listeners.insert(listener);
+    fn add_listener(&mut self, listener: usize) -> bool {
+        self.listeners.insert(listener)
     }
 
-    fn remove_listener(&mut self, listener: usize) {
-        self.listeners.remove(&listener);
+    fn remove_listener(&mut self, listener: usize) -> bool {
+        self.listeners.remove(&listener)
     }
 
     fn own_listeners<'a>(&'a self) -> Box<dyn Iterator<Item = usize> + 'a> {
@@ -177,7 +180,7 @@ pub struct MockCommand {
     terminate: bool,
     operation: Operation,
     mutator: bool,
-    args: Vec<CommandArg<MockTable>>,
+    args: Vec<CommandArg<MockTable, Self>>,
 }
 
 impl Command for MockCommand {
@@ -199,7 +202,9 @@ impl Command for MockCommand {
         self.operation.clone()
     }
 
-    fn get_args_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommandArg<MockTable>> + 'a> {
+    fn get_args_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &'a CommandArg<MockTable, Self>> + 'a> {
         Box::from(self.args.iter())
     }
 }
@@ -237,40 +242,36 @@ impl MockCommand {
 }
 
 #[derive(Debug)]
-pub struct MockCommandResult {
-    mod_count: usize,
-    result: ResultTypes<MockTable>,
+pub enum MockCommandResult {
+    Ok(Vec<Data<MockTable>>, usize),
+    Err(MyError, usize),
 }
 
 impl CommandResult for MockCommandResult {
     type Table = MockTable;
 
     fn modified_row_count(&self) -> usize {
-        self.mod_count
-    }
-
-    fn result(&self) -> &ResultTypes<Self::Table> {
-        &self.result
-    }
-
-    fn new_data_result(data: Data<Self::Table>, mod_count: usize) -> Self {
-        Self {
-            mod_count,
-            result: ResultTypes::Data(data),
+        *match self {
+            MockCommandResult::Ok(_, c) => c,
+            MockCommandResult::Err(_, c) => c,
         }
     }
 
-    fn new_empty_result(mod_count: usize) -> Self {
-        Self {
-            mod_count,
-            result: ResultTypes::None,
+    fn results<'a>(
+        &'a self,
+    ) -> Result<Box<dyn Iterator<Item = &'a Data<Self::Table>> + 'a>, MyError> {
+        match self {
+            MockCommandResult::Ok(result, _) => Ok(Box::new(result.iter())),
+            MockCommandResult::Err(err, _) => Err(err.clone()),
         }
     }
 
-    fn new_error_result(err: MyError) -> Self {
-        Self {
-            mod_count: 0,
-            result: ResultTypes::Error(err),
-        }
+    fn new_data_result(data: impl Iterator<Item = Data<Self::Table>>, mod_count: usize) -> Self {
+        let vec = data.collect();
+        MockCommandResult::Ok(vec, mod_count)
+    }
+
+    fn new_error_result(err: MyError, mod_count: usize) -> Self {
+        MockCommandResult::Err(err, mod_count)
     }
 }

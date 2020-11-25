@@ -12,8 +12,8 @@ pub trait Field {
     fn set_child_listener_ct(&mut self, val: usize) -> usize;
 
     fn own_listener_ct(&self) -> usize;
-    fn add_listener(&mut self, listener: usize);
-    fn remove_listener(&mut self, listener: usize);
+    fn add_listener(&mut self, listener: usize) -> bool;
+    fn remove_listener(&mut self, listener: usize) -> bool;
     fn own_listeners<'a>(&'a self) -> Box<dyn Iterator<Item = usize> + 'a>;
 
     fn get_data(&self) -> &Data<Self::Table>;

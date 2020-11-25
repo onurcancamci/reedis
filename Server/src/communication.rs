@@ -117,7 +117,7 @@ where
                 });
             }
             Err(err) => {
-                let cr = D::CommandResult::new_error_result(err);
+                let cr = D::CommandResult::new_error_result(err, 0); //TODO: this number has to come from somewhere
                 let data = P::serialize_command_result(cr).expect("Command result serialize error");
                 if let Err(_) = stream.write(data.as_slice()) {
                     // assume socket closed

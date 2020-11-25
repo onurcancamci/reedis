@@ -24,7 +24,7 @@ fn set_field() {
     let result = result.unwrap();
 
     assert_eq!(result.0.modified_row_count(), 1);
-    assert_eq!(result.0.result().kind(), ResultTypeVariant::None);
+    assert_eq!(result.0.results().unwrap().count(), 0);
 }
 
 #[test]
@@ -52,7 +52,8 @@ fn set_get_basic_values() {
 
     for (ind, g) in gets.into_iter().enumerate() {
         let result = db.run(g).unwrap();
-        match result.0.result().data().unwrap() {
+        let mut results = result.0.results().unwrap();
+        match results.next().unwrap() {
             Data::Int(x) => {
                 assert_eq!(x, &42);
                 assert_eq!(ind, 0);
@@ -92,11 +93,30 @@ fn set_get_table() {
     let get_result = db.run(get).unwrap();
 
     assert_eq!(
-        get_result.0.result().data().unwrap().table().unwrap(),
+        get_result
+            .0
+            .results()
+            .unwrap()
+            .next()
+            .unwrap()
+            .table()
+            .unwrap(),
         &table_compare
     );
 
     let get_result = db.run(get_int).unwrap();
 
-    assert_eq!(get_result.0.result().data().unwrap().int().unwrap(), &42);
+    assert_eq!(
+        get_result
+            .0
+            .results()
+            .unwrap()
+            .next()
+            .unwrap()
+            .int()
+            .unwrap(),
+        &42
+    );
 }
+
+//TODO: test nested different tables equality to ensure complete value equality

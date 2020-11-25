@@ -28,7 +28,9 @@ impl Command for MockCommand {
         unreachable!()
     }
 
-    fn get_args_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommandArg<Self::Table>> + 'a> {
+    fn get_args_iter<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &'a CommandArg<Self::Table, Self>> + 'a> {
         unreachable!()
     }
 }
@@ -43,19 +45,17 @@ impl CommandResult for MockCommandResult {
         unreachable!()
     }
 
-    fn result(&self) -> &ResultTypes<Self::Table> {
+    fn new_data_result(data: impl Iterator<Item = Data<Self::Table>>, mod_count: usize) -> Self {
         unreachable!()
     }
 
-    fn new_data_result(_: Data<Self::Table>, _: usize) -> Self {
+    fn results<'a>(
+        &'a self,
+    ) -> Result<Box<dyn Iterator<Item = &'a Data<Self::Table>> + 'a>, MyError> {
         unreachable!()
     }
 
-    fn new_empty_result(_: usize) -> Self {
-        unreachable!()
-    }
-
-    fn new_error_result(err: MyError) -> Self {
+    fn new_error_result(err: MyError, mod_count: usize) -> Self {
         unreachable!()
     }
 }
@@ -215,7 +215,10 @@ impl Database<MockEvent> for MockDatabase {
     }
 }
 
-impl TableMethods<MockEvent> for MockTable {}
+impl TableMethods<MockEvent> for MockTable {
+    type Command = MockCommand;
+    type CommandResult = MockCommandResult;
+}
 
 #[derive(Debug, Clone)]
 pub struct MockTcpStream {
@@ -293,7 +296,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn add_listener(&mut self, _: usize) {
+    fn add_listener(&mut self, _: usize) -> bool {
         unreachable!()
     }
 
@@ -313,7 +316,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn remove_listener(&mut self, _: usize) {
+    fn remove_listener(&mut self, _: usize) -> bool {
         unreachable!()
     }
 }
