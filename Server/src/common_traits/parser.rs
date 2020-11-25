@@ -2,15 +2,14 @@ use crate::common_traits::*;
 use crate::error::MyError;
 use std::io::Read;
 
-pub trait Parser<PC, PE, T>
+pub trait Parser<PC, T>
 where
     PC: Command<Table = T>,
-    PE: EventCommand,
     T: Table,
 {
     fn parse_command(data: &[u8]) -> Result<PC, MyError>;
 
-    fn parse_ev_command(data: &[u8]) -> Result<PE, MyError>;
+    fn parse_ev_command(data: &[u8]) -> Result<EventCommand, MyError>;
 
     fn serialize_command_result<CR>(comm: CR) -> Result<Vec<u8>, MyError>
     where
@@ -24,7 +23,7 @@ where
     where
         S: Read;
 
-    fn read_ev_command<S>(stream: &mut S) -> Result<PE, MyError>
+    fn read_ev_command<S>(stream: &mut S) -> Result<EventCommand, MyError>
     where
         S: Read;
 

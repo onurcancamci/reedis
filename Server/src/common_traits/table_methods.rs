@@ -12,32 +12,29 @@ where
     type CommandResult: CommandResult<Table = Self>;
 
     fn create_delete_events(path: &str, op: Operation, table: &Box<Self>, events: &mut Vec<E>) {
-        if table.child_listener_ct() <= 0 {
-            return;
-        }
+        // if table.child_listener_ct() <= 0 {
+        //     return;
+        // }
         // iterate over keys and values
         for key in table.keys_iter() {
             let field = table.get_field(key).unwrap();
-            if field.own_listener_ct() > 0 {
-                // create events
-                Self::create_events(path, op.clone(), &field, events);
-            }
-            if field.child_listener_ct() > 0 {
-                if let Data::Table(nested) = field.get_data() {
-                    Self::create_delete_events(path, op.clone(), nested, events);
-                } else {
-                    //TODO: arraysa icinde gezin ve bul
-                    unreachable!();
-                }
-            }
+            //if field.own_listener_ct() > 0 {
+            //    // create events
+            //    Self::create_events(path, op.clone(), &field, events);
+            //}
+            //if field.child_listener_ct() > 0 {
+            //    if let Data::Table(nested) = field.get_data() {
+            //        Self::create_delete_events(path, op.clone(), nested, events);
+            //    } else {
+            //        //TODO: arraysa icinde gezin ve bul
+            //        unreachable!();
+            //    }
+            //}
         }
     }
 
     fn create_events(path: &str, op: Operation, field: &Self::Field, events: &mut Vec<E>) {
-        for target in field.own_listeners() {
-            let event = E::new(path, op.clone(), target);
-            events.push(event);
-        }
+        unimplemented!()
     }
 
     fn run(&self, command: Self::Command) -> Result<(Self::CommandResult, Vec<E>), MyError> {
@@ -80,13 +77,6 @@ where
         }
     }
 
-    fn run_ev_command<EC>(&mut self, command: EC)
-    where
-        EC: EventCommand,
-    {
-        unimplemented!()
-    }
-
     /// Set operation for table
     /// Propagates to nested tables when necessary and constructs events
     /// TODO: Find a better way to clear unreachable()! and expects
@@ -106,10 +96,10 @@ where
                 if let Data::Table(table) = table {
                     let inner_mod_count = table.set((path.0, new_ind), data, events);
                     mod_count += inner_mod_count;
-                    if inner_mod_count > 0 && table_field.own_listener_ct() > 0 {
-                        // create events
-                        Self::create_events(path.0, Operation::Set, &table_field, events);
-                    }
+                // if inner_mod_count > 0 && table_field.own_listener_ct() > 0 {
+                //     // create events
+                //     Self::create_events(path.0, Operation::Set, &table_field, events);
+                // }
                 } else {
                     unreachable!();
                 }
@@ -125,10 +115,10 @@ where
                             Self::create_delete_events(path.0, Operation::Set, &old_table, events);
                         }
 
-                        if field.own_listener_ct() > 0 {
-                            // create events
-                            Self::create_events(path.0, Operation::Set, &field, events);
-                        }
+                        // if field.own_listener_ct() > 0 {
+                        //     // create events
+                        //     Self::create_events(path.0, Operation::Set, &field, events);
+                        // }
                     }
                     None => {
                         self.insert_data(key, data)
@@ -158,16 +148,4 @@ where
             (key, None) => Ok(self.get_field(key).ok_or(MyError::KeyNotFound)?.get_data()),
         }
     }
-
-    ///Adds target as listener on specified field. Returns error if key not found or path is
-    ///invalid. Returns true if listener is added. If same id is already listening, it returns
-    ///false.
-    fn add_listener(&mut self, path: (&str, usize), target: usize) -> Result<bool, MyError> {
-        unimplemented!()
-    }
-
-    ///Internal function to update child_listener_ct fields if add_listener is successfull.
-    ///Since this will only be called when add_listener is successfull and we still have the lock,
-    ///operation will panic on error.
-    fn mod_child_listener_ct(&mut self, path: (&str, usize), is_add: bool) {}
 }

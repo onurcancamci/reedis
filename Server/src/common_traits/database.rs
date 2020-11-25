@@ -21,13 +21,6 @@ where
         self.table_mut().run_mutable(command)
     }
 
-    fn run_ev_command<EC>(&mut self, command: EC)
-    where
-        EC: EventCommand,
-    {
-        self.table_mut().run_ev_command(command)
-    }
-
     fn table(&self) -> &Self::Table;
     fn table_mut(&mut self) -> &mut Self::Table;
 }

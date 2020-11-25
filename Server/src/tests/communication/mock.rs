@@ -83,24 +83,13 @@ impl Event for MockEvent {
 }
 
 #[derive(Debug, Clone)]
-pub struct MockEventCommand {
-    listen: bool,
-}
-
-impl EventCommand for MockEventCommand {
-    fn is_listen(&self) -> bool {
-        self.listen
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct MockEventContent {}
 
 impl EventContent for MockEventContent {}
 
 pub struct MockParser;
 
-impl Parser<MockCommand, MockEventCommand, MockTable> for MockParser {
+impl Parser<MockCommand, MockTable> for MockParser {
     fn parse_command(data: &[u8]) -> Result<MockCommand, MyError> {
         match data[0] {
             0 => Ok(MockCommand {
@@ -115,10 +104,10 @@ impl Parser<MockCommand, MockEventCommand, MockTable> for MockParser {
         }
     }
 
-    fn parse_ev_command(data: &[u8]) -> Result<MockEventCommand, MyError> {
+    fn parse_ev_command(data: &[u8]) -> Result<EventCommand, MyError> {
         match data[0] {
-            0 => Ok(MockEventCommand { listen: false }),
-            1 => Ok(MockEventCommand { listen: true }),
+            0 => Ok(EventCommand::Listen("test".to_string(), 0)),
+            1 => Ok(EventCommand::Start),
             _ => Err(MyError::TODO),
         }
     }
@@ -163,7 +152,7 @@ impl Parser<MockCommand, MockEventCommand, MockTable> for MockParser {
             .map_err(|_| MyError::SocketReadError)?;
         Self::parse_command(&buf)
     }
-    fn read_ev_command<S>(stream: &mut S) -> Result<MockEventCommand, MyError>
+    fn read_ev_command<S>(stream: &mut S) -> Result<EventCommand, MyError>
     where
         S: Read,
     {
@@ -191,12 +180,6 @@ impl Database<MockEvent> for MockDatabase {
                 content: MockEventContent {},
             }],
         ))
-    }
-
-    fn run_ev_command<EC>(&mut self, _: EC)
-    where
-        EC: EventCommand,
-    {
     }
 
     fn table(&self) -> &Self::Table {
@@ -284,23 +267,7 @@ pub struct MockField;
 impl Field for MockField {
     type Table = MockTable;
 
-    fn child_listener_ct(&self) -> usize {
-        unreachable!()
-    }
-
-    fn set_child_listener_ct(&mut self, _: usize) -> usize {
-        unreachable!()
-    }
-
     fn get_data(&self) -> &Data<Self::Table> {
-        unreachable!()
-    }
-
-    fn add_listener(&mut self, _: usize) -> bool {
-        unreachable!()
-    }
-
-    fn own_listeners(&self) -> Box<dyn Iterator<Item = usize>> {
         unreachable!()
     }
 
@@ -308,15 +275,7 @@ impl Field for MockField {
         unreachable!()
     }
 
-    fn own_listener_ct(&self) -> usize {
-        unreachable!()
-    }
-
     fn create_with_data(_: Data<Self::Table>) -> Self {
-        unreachable!()
-    }
-
-    fn remove_listener(&mut self, _: usize) -> bool {
         unreachable!()
     }
 }
@@ -340,14 +299,6 @@ impl Table for MockTable {
     }
 
     fn keys_iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a str>> {
-        unreachable!()
-    }
-
-    fn child_listener_ct(&self) -> usize {
-        unreachable!()
-    }
-
-    fn set_child_listener_ct(&mut self, _: usize) -> usize {
         unreachable!()
     }
 

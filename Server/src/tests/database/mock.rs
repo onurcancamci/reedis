@@ -33,7 +33,6 @@ impl MockDatabase {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MockTable {
     map: HashMap<String, MockField>,
-    child_listeners: usize,
 }
 
 impl Table for MockTable {
@@ -42,17 +41,7 @@ impl Table for MockTable {
     fn new() -> Box<Self> {
         Box::new(MockTable {
             map: HashMap::new(),
-            child_listeners: 0,
         })
-    }
-
-    fn child_listener_ct(&self) -> usize {
-        self.child_listeners
-    }
-
-    fn set_child_listener_ct(&mut self, val: usize) -> usize {
-        self.child_listeners = val;
-        val
     }
 
     fn get_field(&self, key: &str) -> Option<&Self::Field> {
@@ -110,31 +99,6 @@ impl Field for MockField {
 
     fn data_type(&self) -> DataType {
         self.data.data_type()
-    }
-
-    fn add_listener(&mut self, listener: usize) -> bool {
-        self.listeners.insert(listener)
-    }
-
-    fn remove_listener(&mut self, listener: usize) -> bool {
-        self.listeners.remove(&listener)
-    }
-
-    fn own_listeners<'a>(&'a self) -> Box<dyn Iterator<Item = usize> + 'a> {
-        Box::new(self.listeners.iter().map(|e| *e))
-    }
-
-    fn own_listener_ct(&self) -> usize {
-        self.listeners.len()
-    }
-
-    fn child_listener_ct(&self) -> usize {
-        self.child_listeners
-    }
-
-    fn set_child_listener_ct(&mut self, val: usize) -> usize {
-        self.child_listeners = val;
-        val
     }
 }
 

@@ -29,7 +29,7 @@ fn simple_flow() {
     let c_id_counter = id_counter.clone();
     let c_db = db.clone();
     let ev_listen_handle = spawn(move || {
-        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase, MockEventCommand>(
+        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase>(
             &mut *c_ev_client_tcp_mut.lock().unwrap(),
             c_tx_register,
             c_tx_event,
@@ -49,7 +49,7 @@ fn simple_flow() {
     let c_id_counter = id_counter.clone();
     let c_db = db.clone();
     let data_handle = spawn(move || {
-        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase, MockEventCommand>(
+        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase>(
             &mut *c_client_tcp_mut.lock().unwrap(),
             c_tx_register,
             c_tx_event,

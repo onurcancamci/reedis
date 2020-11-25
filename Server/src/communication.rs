@@ -8,7 +8,7 @@ use std::thread::spawn;
 use crate::common_traits::Database;
 use crate::*;
 
-pub fn handle_client<T, E, P, D, EC>(
+pub fn handle_client<T, E, P, D>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<E::Content>)>,
     tx_event: Sender<E>,
@@ -18,9 +18,8 @@ pub fn handle_client<T, E, P, D, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, D::Table>,
+    P: Parser<D::Command, D::Table>,
     D: Database<E>,
-    EC: EventCommand,
 {
     // wait for intent, data / event
     let intent = P::read_intent(stream)?;
@@ -28,11 +27,11 @@ where
     match intent {
         StreamIntent::Data => {
             drop(tx_register);
-            handle_data::<T, E, P, D, EC>(stream, tx_event, db)?;
+            handle_data::<T, E, P, D>(stream, tx_event, db)?;
         }
         StreamIntent::Event => {
             drop(tx_event);
-            handle_event::<T, P, D, EC, E>(stream, tx_register, id_counter, db)?;
+            handle_event::<T, P, D, E>(stream, tx_register, id_counter, db)?;
         }
     }
 
@@ -82,7 +81,7 @@ where
     Err(register_handle.join().unwrap())
 }
 
-pub fn handle_data<T, E, P, D, EC>(
+pub fn handle_data<T, E, P, D>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
@@ -90,9 +89,8 @@ pub fn handle_data<T, E, P, D, EC>(
 where
     T: Read + Write,
     E: Event,
-    P: Parser<D::Command, EC, D::Table>,
+    P: Parser<D::Command, D::Table>,
     D: Database<E>,
-    EC: EventCommand,
 {
     loop {
         let comm: D::Command = P::read_command(stream)?;
@@ -128,7 +126,7 @@ where
     }
 }
 
-pub fn handle_event<T, P, D, EC, E>(
+pub fn handle_event<T, P, D, E>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<E::Content>)>,
     id_counter: Arc<AtomicUsize>,
@@ -136,18 +134,18 @@ pub fn handle_event<T, P, D, EC, E>(
 ) -> Result<(), MyError>
 where
     T: Read + Write,
-    P: Parser<D::Command, EC, D::Table>,
-    EC: EventCommand,
+    P: Parser<D::Command, D::Table>,
     D: Database<E>,
     E: Event,
 {
     //configure event thread
     loop {
         let comm = P::read_ev_command(stream)?;
-        if comm.is_listen() {
+        if comm.is_start() {
             break;
         } else {
-            db.write().unwrap().run_ev_command(comm);
+            //db.write().unwrap().run_ev_command(comm);
+            //TODO
         }
     }
 
