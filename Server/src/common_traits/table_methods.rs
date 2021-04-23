@@ -2,7 +2,10 @@ use crate::common_traits::*;
 use crate::data::*;
 use crate::error::*;
 use crate::util::*;
-use std::iter::once;
+use std::{
+    iter::once,
+    sync::{Arc, RwLock},
+};
 
 pub trait TableMethods<E>: Table
 where
@@ -11,39 +14,38 @@ where
     type Command: Command<Table = Self>;
     type CommandResult: CommandResult<Table = Self>;
 
-    fn create_delete_events(path: &str, op: Operation, table: &Box<Self>, events: &mut Vec<E>) {
-        // if table.child_listener_ct() <= 0 {
-        //     return;
-        // }
-        // iterate over keys and values
+    fn create_delete_events(
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        path: &str,
+        op: Operation,
+        table: &Box<Self>,
+    ) {
+        //check event table
+        let ctx = context.read().unwrap();
+        let res = ctx.event_table().lookup(path);
+
+        for id in res {
+            ctx.tx_event().send(E::new(path, op.clone(), id)).unwrap();
+        }
+
         for key in table.keys_iter() {
             let field = table.get_field(key).unwrap();
-            //if field.own_listener_ct() > 0 {
-            //    // create events
-            //    Self::create_events(path, op.clone(), &field, events);
-            //}
-            //if field.child_listener_ct() > 0 {
-            //    if let Data::Table(nested) = field.get_data() {
-            //        Self::create_delete_events(path, op.clone(), nested, events);
-            //    } else {
-            //        //TODO: arraysa icinde gezin ve bul
-            //        unreachable!();
-            //    }
-            //}
+            unimplemented!();
+            //TODO: recurse down and check own fields
         }
     }
 
-    fn create_events(path: &str, op: Operation, field: &Self::Field, events: &mut Vec<E>) {
-        unimplemented!()
-    }
-
-    fn run(&self, command: Self::Command) -> Result<(Self::CommandResult, Vec<E>), MyError> {
+    fn run(
+        &self,
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        command: Self::Command,
+    ) -> Result<Self::CommandResult, MyError> {
         let op = command.get_operation();
         match op {
             Operation::Get => {
                 let data = self.get((command.get_path().ok_or(MyError::MalformedCommand)?, 0))?;
                 let cres = Self::CommandResult::new_data_result(once(data.clone()), 0);
-                Ok((cres, vec![]))
+                Ok(cres)
             }
             Operation::Set => panic!("Wrong run variant"),
             Operation::Terminate => panic!("Terminate cant run on table"),
@@ -52,8 +54,9 @@ where
 
     fn run_mutable(
         &mut self,
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
         command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<E>), MyError> {
+    ) -> Result<Self::CommandResult, MyError> {
         let op = command.get_operation();
         match op {
             Operation::Get => panic!("Wrong run variant"),
@@ -64,14 +67,13 @@ where
                     .ok_or(MyError::MalformedCommand)?
                     .data()
                     .ok_or(MyError::MalformedCommand)?;
-                let mut events: Vec<E> = vec![];
                 let mod_count = self.set(
+                    context,
                     (command.get_path().ok_or(MyError::MalformedCommand)?, 0),
                     data.clone(),
-                    &mut events,
                 );
                 let cres = Self::CommandResult::new_data_result(vec![].into_iter(), mod_count);
-                Ok((cres, events))
+                Ok(cres)
             }
             Operation::Terminate => panic!("Terminate cant run on table"),
         }
@@ -80,7 +82,12 @@ where
     /// Set operation for table
     /// Propagates to nested tables when necessary and constructs events
     /// TODO: Find a better way to clear unreachable()! and expects
-    fn set(&mut self, path: (&str, usize), data: Data<Self>, events: &mut Vec<E>) -> usize {
+    fn set(
+        &mut self,
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        path: (&str, usize),
+        data: Data<Self>,
+    ) -> usize {
         let mut mod_count = 0;
         let key_ind = next_path_key(path);
         match key_ind {
@@ -94,7 +101,7 @@ where
                 let table_field = self.get_field_mut(key).unwrap_or_else(|| unreachable!());
                 let table = table_field.get_data_mut();
                 if let Data::Table(table) = table {
-                    let inner_mod_count = table.set((path.0, new_ind), data, events);
+                    let inner_mod_count = table.set(context, (path.0, new_ind), data);
                     mod_count += inner_mod_count;
                 // if inner_mod_count > 0 && table_field.own_listener_ct() > 0 {
                 //     // create events
@@ -112,7 +119,7 @@ where
                         // remove field
                         let old_data = field.replace_data(data);
                         if let Data::Table(old_table) = old_data {
-                            Self::create_delete_events(path.0, Operation::Set, &old_table, events);
+                            Self::create_delete_events(context, path.0, Operation::Set, &old_table);
                         }
 
                         // if field.own_listener_ct() > 0 {

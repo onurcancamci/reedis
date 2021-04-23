@@ -4,32 +4,36 @@ use crate::common_traits::*;
 use crate::data::*;
 use crate::error::MyError;
 use mock::*;
+use std::sync::{Arc, RwLock};
 
 #[test]
 fn get_non_existent_field() {
     let db = MockDatabase::new();
     let get_command = MockCommand::new_get("test");
+    let context = Arc::new(RwLock::new(MockExecutionContext {}));
 
-    let result = db.run(get_command);
+    let result = db.run(context, get_command);
     assert_eq!(result.unwrap_err(), MyError::KeyNotFound);
 }
 
 #[test]
 fn set_field() {
     let mut db = MockDatabase::new();
+    let context = Arc::new(RwLock::new(MockExecutionContext {}));
     let set_command = MockCommand::new_set("test", Data::Int(42));
 
-    let result = db.run_mutable(set_command);
+    let result = db.run_mutable(context, set_command);
 
     let result = result.unwrap();
 
-    assert_eq!(result.0.modified_row_count(), 1);
-    assert_eq!(result.0.results().unwrap().count(), 0);
+    assert_eq!(result.modified_row_count(), 1);
+    assert_eq!(result.results().unwrap().count(), 0);
 }
 
 #[test]
 fn set_get_basic_values() {
     let mut db = MockDatabase::new();
+    let context = Arc::new(RwLock::new(MockExecutionContext {}));
 
     let sets = vec![
         MockCommand::new_set("int", Data::Int(42)),
@@ -46,13 +50,13 @@ fn set_get_basic_values() {
     ];
 
     for s in sets {
-        let result = db.run_mutable(s).unwrap();
-        assert_eq!(result.0.modified_row_count(), 1);
+        let result = db.run_mutable(Arc::clone(&context), s).unwrap();
+        assert_eq!(result.modified_row_count(), 1);
     }
 
     for (ind, g) in gets.into_iter().enumerate() {
-        let result = db.run(g).unwrap();
-        let mut results = result.0.results().unwrap();
+        let result = db.run(Arc::clone(&context), g).unwrap();
+        let mut results = result.results().unwrap();
         match results.next().unwrap() {
             Data::Int(x) => {
                 assert_eq!(x, &42);
@@ -78,6 +82,7 @@ fn set_get_basic_values() {
 #[test]
 fn set_get_table() {
     let mut db = MockDatabase::new();
+    let context = Arc::new(RwLock::new(MockExecutionContext {}));
 
     let mut table_in = MockTable::new();
     table_in.insert_data("int", Data::Int(42)).unwrap();
@@ -87,14 +92,13 @@ fn set_get_table() {
     let get = MockCommand::new_get("test");
     let get_int = MockCommand::new_get("test/int");
 
-    let result = db.run_mutable(set).unwrap();
-    assert_eq!(result.0.modified_row_count(), 1);
+    let result = db.run_mutable(Arc::clone(&context), set).unwrap();
+    assert_eq!(result.modified_row_count(), 1);
 
-    let get_result = db.run(get).unwrap();
+    let get_result = db.run(Arc::clone(&context), get).unwrap();
 
     assert_eq!(
         get_result
-            .0
             .results()
             .unwrap()
             .next()
@@ -104,17 +108,10 @@ fn set_get_table() {
         &table_compare
     );
 
-    let get_result = db.run(get_int).unwrap();
+    let get_result = db.run(Arc::clone(&context), get_int).unwrap();
 
     assert_eq!(
-        get_result
-            .0
-            .results()
-            .unwrap()
-            .next()
-            .unwrap()
-            .int()
-            .unwrap(),
+        get_result.results().unwrap().next().unwrap().int().unwrap(),
         &42
     );
 }

@@ -1,3 +1,4 @@
+#![allow(unused_variables, dead_code)]
 //use communication::{event_thread, handle_client};
 //use std::net::{TcpListener, TcpStream};
 //use std::sync::mpsc::{channel, Sender};

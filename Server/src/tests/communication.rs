@@ -16,7 +16,11 @@ fn simple_flow() {
     let id_counter = Arc::new(AtomicUsize::new(0));
     let db = Arc::new(RwLock::new(MockDatabase {}));
 
-    let ev_handle = spawn(|| event_thread(rx_register, rx_event));
+    let context = Arc::new(RwLock::new(MockExecutionContext {}));
+    let context_ev = Arc::clone(&context);
+    let context_client = Arc::clone(&context);
+
+    let ev_handle = spawn(|| event_thread(rx_register, rx_event, context_ev));
 
     // Event listener client
 
@@ -29,12 +33,13 @@ fn simple_flow() {
     let c_id_counter = id_counter.clone();
     let c_db = db.clone();
     let ev_listen_handle = spawn(move || {
-        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase>(
+        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase, MockExecutionContext>(
             &mut *c_ev_client_tcp_mut.lock().unwrap(),
             c_tx_register,
             c_tx_event,
             c_id_counter,
             c_db,
+            Arc::clone(&context),
         )
     });
 
@@ -49,12 +54,13 @@ fn simple_flow() {
     let c_id_counter = id_counter.clone();
     let c_db = db.clone();
     let data_handle = spawn(move || {
-        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase>(
+        handle_client::<MockTcpStream, MockEvent, MockParser, MockDatabase, MockExecutionContext>(
             &mut *c_client_tcp_mut.lock().unwrap(),
             c_tx_register,
             c_tx_event,
             c_id_counter,
             c_db,
+            context_client,
         )
     });
 
@@ -72,6 +78,10 @@ fn simple_flow() {
         MyError::EventChannelClosed
     );
 
+    //TODO: fix this
+    //event thread not receiving event
+    //before, commands on tables returned result and events vector
+    //now, tables send events directly to event thread via ExecutionContext
     assert_eq!(ev_client_tcp_mut.lock().unwrap().out, vec![32]);
     assert_eq!(client_tcp_mut.lock().unwrap().out, vec![33]);
 }

@@ -8,18 +8,20 @@ use std::thread::spawn;
 use crate::common_traits::Database;
 use crate::*;
 
-pub fn handle_client<T, E, P, D>(
+pub fn handle_client<T, E, P, D, X>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<E::Content>)>,
     tx_event: Sender<E>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
+    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
     E: Event,
     P: Parser<D::Command, D::Table>,
     D: Database<E>,
+    X: ExecutionContext<E>,
 {
     // wait for intent, data / event
     let intent = P::read_intent(stream)?;
@@ -27,23 +29,25 @@ where
     match intent {
         StreamIntent::Data => {
             drop(tx_register);
-            handle_data::<T, E, P, D>(stream, tx_event, db)?;
+            handle_data::<T, E, P, D, X>(stream, tx_event, db, context)?;
         }
         StreamIntent::Event => {
             drop(tx_event);
-            handle_event::<T, P, D, E>(stream, tx_register, id_counter, db)?;
+            handle_event::<T, P, D, E, X>(stream, tx_register, id_counter, db, context)?;
         }
     }
 
     Ok(())
 }
 
-pub fn event_thread<V>(
+pub fn event_thread<V, X>(
     rx_register: Receiver<(usize, Sender<V::Content>)>,
     rx_event: Receiver<V>,
+    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     V: Event,
+    X: ExecutionContext<V>,
 {
     let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<V::Content>>::new()));
 
@@ -81,38 +85,41 @@ where
     Err(register_handle.join().unwrap())
 }
 
-pub fn handle_data<T, E, P, D>(
+pub fn handle_data<T, E, P, D, X>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
+    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
     E: Event,
     P: Parser<D::Command, D::Table>,
     D: Database<E>,
+    X: ExecutionContext<E>,
 {
     loop {
+        let context = Arc::clone(&context);
         let comm: D::Command = P::read_command(stream)?;
         if comm.is_terminate() {
             return Ok(());
         }
         let q_result = if comm.is_mutator() {
-            db.write().unwrap().run_mutable(comm)
+            db.write().unwrap().run_mutable(context, comm)
         } else {
-            db.read().unwrap().run(comm)
+            db.read().unwrap().run(context, comm)
         };
         match q_result {
-            Ok((cr, evs)) => {
+            Ok(cr) => {
                 // send result
                 let data = P::serialize_command_result(cr).expect("Command result serialize error");
                 if let Err(_) = stream.write(data.as_slice()) {
                     // assume socket closed
                     return Err(MyError::SocketError);
                 }
-                evs.into_iter().for_each(|ev| {
-                    let _ = tx_event.send(ev);
-                });
+                // evs.into_iter().for_each(|ev| {
+                //     let _ = tx_event.send(ev);
+                // });
             }
             Err(err) => {
                 let cr = D::CommandResult::new_error_result(err, 0); //TODO: this number has to come from somewhere
@@ -126,17 +133,19 @@ where
     }
 }
 
-pub fn handle_event<T, P, D, E>(
+pub fn handle_event<T, P, D, E, X>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<E::Content>)>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
+    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
     P: Parser<D::Command, D::Table>,
     D: Database<E>,
     E: Event,
+    X: ExecutionContext<E>,
 {
     //configure event thread
     loop {

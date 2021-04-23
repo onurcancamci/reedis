@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use crate::common_traits::*;
 use crate::error::MyError;
 
@@ -10,15 +12,20 @@ where
     type Table: Table
         + TableMethods<E, Command = Self::Command, CommandResult = Self::CommandResult>;
 
-    fn run(&self, command: Self::Command) -> Result<(Self::CommandResult, Vec<E>), MyError> {
-        self.table().run(command)
+    fn run(
+        &self,
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        command: Self::Command,
+    ) -> Result<Self::CommandResult, MyError> {
+        self.table().run(context, command)
     }
 
     fn run_mutable(
         &mut self,
+        context: Arc<RwLock<impl ExecutionContext<E>>>,
         command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<E>), MyError> {
-        self.table_mut().run_mutable(command)
+    ) -> Result<Self::CommandResult, MyError> {
+        self.table_mut().run_mutable(context, command)
     }
 
     fn table(&self) -> &Self::Table;

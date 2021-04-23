@@ -1,7 +1,10 @@
 use crate::common_traits::*;
 use crate::data::*;
 use crate::error::MyError;
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    sync::{Arc, RwLock},
+};
 
 #[derive(Debug, Clone)]
 pub struct MockCommand {
@@ -172,14 +175,12 @@ impl Database<MockEvent> for MockDatabase {
     type Command = MockCommand;
     type Table = MockTable;
 
-    fn run(&self, _: Self::Command) -> Result<(Self::CommandResult, Vec<MockEvent>), MyError> {
-        Ok((
-            MockCommandResult {},
-            vec![MockEvent {
-                target: 0,
-                content: MockEventContent {},
-            }],
-        ))
+    fn run(
+        &self,
+        context: Arc<RwLock<impl ExecutionContext<MockEvent>>>,
+        command: Self::Command,
+    ) -> Result<Self::CommandResult, MyError> {
+        Ok(MockCommandResult {})
     }
 
     fn table(&self) -> &Self::Table {
@@ -192,9 +193,10 @@ impl Database<MockEvent> for MockDatabase {
 
     fn run_mutable(
         &mut self,
-        _command: Self::Command,
-    ) -> Result<(Self::CommandResult, Vec<MockEvent>), MyError> {
-        unreachable!()
+        context: Arc<RwLock<impl ExecutionContext<MockEvent>>>,
+        command: Self::Command,
+    ) -> Result<Self::CommandResult, MyError> {
+        unreachable!();
     }
 }
 
@@ -304,5 +306,39 @@ impl Table for MockTable {
 
     fn get_field_mut(&mut self, _: &str) -> Option<&mut Self::Field> {
         unreachable!()
+    }
+}
+
+pub struct MockEventTable;
+
+impl EventTable for MockEventTable {
+    fn listen(&mut self, path: &str, listener: usize) {
+        unreachable!();
+    }
+
+    fn unlisten(&mut self, path: &str, listener: usize) {
+        unreachable!();
+    }
+
+    fn unlisten_listener(&mut self, listener: usize) {
+        unreachable!();
+    }
+
+    fn lookup<'a>(&'a self, path: &str) -> Box<dyn Iterator<Item = usize> + 'a> {
+        unreachable!();
+    }
+}
+
+pub struct MockExecutionContext;
+
+impl ExecutionContext<MockEvent> for MockExecutionContext {
+    type EventTable = MockEventTable;
+
+    fn tx_event(&self) -> &std::sync::mpsc::Sender<MockEvent> {
+        unreachable!();
+    }
+
+    fn event_table(&self) -> &Self::EventTable {
+        unreachable!();
     }
 }

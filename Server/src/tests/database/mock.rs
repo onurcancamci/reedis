@@ -239,3 +239,37 @@ impl CommandResult for MockCommandResult {
         MockCommandResult::Err(err, mod_count)
     }
 }
+
+pub struct MockEventTable;
+
+impl EventTable for MockEventTable {
+    fn listen(&mut self, path: &str, listener: usize) {
+        unreachable!();
+    }
+
+    fn unlisten(&mut self, path: &str, listener: usize) {
+        unreachable!();
+    }
+
+    fn unlisten_listener(&mut self, listener: usize) {
+        unreachable!();
+    }
+
+    fn lookup<'a>(&'a self, path: &str) -> Box<dyn Iterator<Item = usize> + 'a> {
+        unreachable!();
+    }
+}
+
+pub struct MockExecutionContext;
+
+impl ExecutionContext<MockEvent> for MockExecutionContext {
+    type EventTable = MockEventTable;
+
+    fn tx_event(&self) -> &std::sync::mpsc::Sender<MockEvent> {
+        unreachable!();
+    }
+
+    fn event_table(&self) -> &Self::EventTable {
+        unreachable!();
+    }
+}
