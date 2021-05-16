@@ -150,6 +150,14 @@ pub struct MockCommand {
 impl Command for MockCommand {
     type Table = MockTable;
 
+    fn new_with_vec(
+        op: Operation,
+        path: Option<String>,
+        args: Vec<CommandArg<Self::Table, Self>>,
+    ) -> Self {
+        unreachable!()
+    }
+
     fn get_path<'a>(&'a self) -> Option<&'a str> {
         self.path.as_deref()
     }

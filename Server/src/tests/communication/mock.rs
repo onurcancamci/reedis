@@ -3,7 +3,7 @@ use crate::data::*;
 use crate::error::MyError;
 use std::{
     io::{Read, Write},
-    sync::{Arc, RwLock},
+    sync::{mpsc::Sender, Arc, Mutex},
 };
 
 #[derive(Debug, Clone)]
@@ -14,6 +14,14 @@ pub struct MockCommand {
 
 impl Command for MockCommand {
     type Table = MockTable;
+
+    fn new_with_vec(
+        op: Operation,
+        path: Option<String>,
+        args: Vec<CommandArg<Self::Table, Self>>,
+    ) -> Self {
+        unreachable!()
+    }
 
     fn is_terminate(&self) -> bool {
         self.terminate
@@ -177,9 +185,16 @@ impl Database<MockEvent> for MockDatabase {
 
     fn run(
         &self,
-        context: Arc<RwLock<impl ExecutionContext<MockEvent>>>,
+        context: Arc<Mutex<impl ExecutionContext<MockEvent>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
+        let ctx = context.lock().unwrap();
+        ctx.tx_event()
+            .send(MockEvent {
+                content: MockEventContent {},
+                target: 0,
+            })
+            .unwrap();
         Ok(MockCommandResult {})
     }
 
@@ -193,7 +208,7 @@ impl Database<MockEvent> for MockDatabase {
 
     fn run_mutable(
         &mut self,
-        context: Arc<RwLock<impl ExecutionContext<MockEvent>>>,
+        context: Arc<Mutex<impl ExecutionContext<MockEvent>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
         unreachable!();
@@ -329,13 +344,15 @@ impl EventTable for MockEventTable {
     }
 }
 
-pub struct MockExecutionContext;
+pub struct MockExecutionContext {
+    pub tx: Sender<MockEvent>,
+}
 
 impl ExecutionContext<MockEvent> for MockExecutionContext {
     type EventTable = MockEventTable;
 
-    fn tx_event(&self) -> &std::sync::mpsc::Sender<MockEvent> {
-        unreachable!();
+    fn tx_event(&self) -> &Sender<MockEvent> {
+        &self.tx
     }
 
     fn event_table(&self) -> &Self::EventTable {

@@ -1,3 +1,5 @@
+use std::mem::{discriminant, Discriminant};
+
 use crate::common_traits::*;
 use crate::data::*;
 
@@ -6,7 +8,11 @@ pub trait Command: Sized {
 
     //TODO: for parser, new functions are required
 
-    //fn new(op: Operation, path: Option<String>)
+    fn new_with_vec(
+        op: Operation,
+        path: Option<String>,
+        args: Vec<CommandArg<Self::Table, Self>>,
+    ) -> Self;
 
     fn is_terminate(&self) -> bool;
 
@@ -21,14 +27,14 @@ pub trait Command: Sized {
     ) -> Box<dyn Iterator<Item = &'a CommandArg<Self::Table, Self>> + 'a>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CommandArg<T, C>
 where
     T: Table,
     C: Command<Table = T>,
 {
     Data(Data<T>),
-    Command(C),
+    Command(Box<C>),
 }
 
 impl<T, C> CommandArg<T, C>
@@ -67,5 +73,9 @@ impl Operation {
             Operation::Set => true,
             Operation::Terminate => false,
         }
+    }
+
+    pub fn is_terminate(&self) -> bool {
+        discriminant(self) == discriminant(&Operation::Terminate)
     }
 }

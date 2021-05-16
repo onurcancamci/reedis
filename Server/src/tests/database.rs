@@ -4,13 +4,13 @@ use crate::common_traits::*;
 use crate::data::*;
 use crate::error::MyError;
 use mock::*;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 #[test]
 fn get_non_existent_field() {
     let db = MockDatabase::new();
     let get_command = MockCommand::new_get("test");
-    let context = Arc::new(RwLock::new(MockExecutionContext {}));
+    let context = Arc::new(Mutex::new(MockExecutionContext {}));
 
     let result = db.run(context, get_command);
     assert_eq!(result.unwrap_err(), MyError::KeyNotFound);
@@ -19,7 +19,7 @@ fn get_non_existent_field() {
 #[test]
 fn set_field() {
     let mut db = MockDatabase::new();
-    let context = Arc::new(RwLock::new(MockExecutionContext {}));
+    let context = Arc::new(Mutex::new(MockExecutionContext {}));
     let set_command = MockCommand::new_set("test", Data::Int(42));
 
     let result = db.run_mutable(context, set_command);
@@ -33,7 +33,7 @@ fn set_field() {
 #[test]
 fn set_get_basic_values() {
     let mut db = MockDatabase::new();
-    let context = Arc::new(RwLock::new(MockExecutionContext {}));
+    let context = Arc::new(Mutex::new(MockExecutionContext {}));
 
     let sets = vec![
         MockCommand::new_set("int", Data::Int(42)),
@@ -82,7 +82,7 @@ fn set_get_basic_values() {
 #[test]
 fn set_get_table() {
     let mut db = MockDatabase::new();
-    let context = Arc::new(RwLock::new(MockExecutionContext {}));
+    let context = Arc::new(Mutex::new(MockExecutionContext {}));
 
     let mut table_in = MockTable::new();
     table_in.insert_data("int", Data::Int(42)).unwrap();

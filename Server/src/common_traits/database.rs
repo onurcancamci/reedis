@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 
 use crate::common_traits::*;
 use crate::error::MyError;
@@ -14,7 +14,7 @@ where
 
     fn run(
         &self,
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
         self.table().run(context, command)
@@ -22,7 +22,7 @@ where
 
     fn run_mutable(
         &mut self,
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
         self.table_mut().run_mutable(context, command)

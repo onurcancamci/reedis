@@ -4,7 +4,7 @@ use crate::error::*;
 use crate::util::*;
 use std::{
     iter::once,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
 };
 
 pub trait TableMethods<E>: Table
@@ -15,29 +15,37 @@ where
     type CommandResult: CommandResult<Table = Self>;
 
     fn create_delete_events(
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         path: &str,
         op: Operation,
         table: &Box<Self>,
     ) {
         //check event table
-        let ctx = context.read().unwrap();
-        let res = ctx.event_table().lookup(path);
+        {
+            let ctx = context.lock().unwrap();
+            let res = ctx.event_table().lookup(path);
 
-        for id in res {
-            ctx.tx_event().send(E::new(path, op.clone(), id)).unwrap();
+            for id in res {
+                ctx.tx_event().send(E::new(path, op.clone(), id)).unwrap();
+            }
         }
 
         for key in table.keys_iter() {
             let field = table.get_field(key).unwrap();
-            unimplemented!();
-            //TODO: recurse down and check own fields
+            if let Data::Table(inner) = field.get_data() {
+                Self::create_delete_events(
+                    Arc::clone(&context),
+                    format!("{}/{}", path, key).as_str(),
+                    op.clone(),
+                    inner,
+                );
+            }
         }
     }
 
     fn run(
         &self,
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
         let op = command.get_operation();
@@ -54,7 +62,7 @@ where
 
     fn run_mutable(
         &mut self,
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         command: Self::Command,
     ) -> Result<Self::CommandResult, MyError> {
         let op = command.get_operation();
@@ -84,7 +92,7 @@ where
     /// TODO: Find a better way to clear unreachable()! and expects
     fn set(
         &mut self,
-        context: Arc<RwLock<impl ExecutionContext<E>>>,
+        context: Arc<Mutex<impl ExecutionContext<E>>>,
         path: (&str, usize),
         data: Data<Self>,
     ) -> usize {
@@ -103,10 +111,8 @@ where
                 if let Data::Table(table) = table {
                     let inner_mod_count = table.set(context, (path.0, new_ind), data);
                     mod_count += inner_mod_count;
-                // if inner_mod_count > 0 && table_field.own_listener_ct() > 0 {
-                //     // create events
-                //     Self::create_events(path.0, Operation::Set, &table_field, events);
-                // }
+                //TODO: if recursed set modified anything, trigger event for this table
+                //
                 } else {
                     unreachable!();
                 }
@@ -119,13 +125,9 @@ where
                         // remove field
                         let old_data = field.replace_data(data);
                         if let Data::Table(old_table) = old_data {
-                            Self::create_delete_events(context, path.0, Operation::Set, &old_table);
+                            //Self::create_delete_events(context, path.0, Operation::Set, &old_table);
                         }
-
-                        // if field.own_listener_ct() > 0 {
-                        //     // create events
-                        //     Self::create_events(path.0, Operation::Set, &field, events);
-                        // }
+                        // TODO: update event for this table
                     }
                     None => {
                         self.insert_data(key, data)
@@ -155,4 +157,6 @@ where
             (key, None) => Ok(self.get_field(key).ok_or(MyError::KeyNotFound)?.get_data()),
         }
     }
+
+    //
 }

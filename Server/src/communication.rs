@@ -14,7 +14,7 @@ pub fn handle_client<T, E, P, D, X>(
     tx_event: Sender<E>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
-    context: Arc<RwLock<X>>,
+    context: Arc<Mutex<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
@@ -33,21 +33,20 @@ where
         }
         StreamIntent::Event => {
             drop(tx_event);
-            handle_event::<T, P, D, E, X>(stream, tx_register, id_counter, db, context)?;
+            drop(context);
+            handle_event::<T, P, D, E>(stream, tx_register, id_counter, db)?;
         }
     }
 
     Ok(())
 }
 
-pub fn event_thread<V, X>(
+pub fn event_thread<V>(
     rx_register: Receiver<(usize, Sender<V::Content>)>,
     rx_event: Receiver<V>,
-    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     V: Event,
-    X: ExecutionContext<V>,
 {
     let listeners = Arc::new(Mutex::new(HashMap::<usize, Sender<V::Content>>::new()));
 
@@ -89,7 +88,7 @@ pub fn handle_data<T, E, P, D, X>(
     stream: &mut T,
     tx_event: Sender<E>,
     db: Arc<RwLock<D>>,
-    context: Arc<RwLock<X>>,
+    context: Arc<Mutex<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
@@ -117,9 +116,6 @@ where
                     // assume socket closed
                     return Err(MyError::SocketError);
                 }
-                // evs.into_iter().for_each(|ev| {
-                //     let _ = tx_event.send(ev);
-                // });
             }
             Err(err) => {
                 let cr = D::CommandResult::new_error_result(err, 0); //TODO: this number has to come from somewhere
@@ -133,19 +129,17 @@ where
     }
 }
 
-pub fn handle_event<T, P, D, E, X>(
+pub fn handle_event<T, P, D, E>(
     stream: &mut T,
     tx_register: Sender<(usize, Sender<E::Content>)>,
     id_counter: Arc<AtomicUsize>,
     db: Arc<RwLock<D>>,
-    context: Arc<RwLock<X>>,
 ) -> Result<(), MyError>
 where
     T: Read + Write,
     P: Parser<D::Command, D::Table>,
     D: Database<E>,
     E: Event,
-    X: ExecutionContext<E>,
 {
     //configure event thread
     loop {

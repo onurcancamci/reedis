@@ -16,11 +16,13 @@ fn simple_flow() {
     let id_counter = Arc::new(AtomicUsize::new(0));
     let db = Arc::new(RwLock::new(MockDatabase {}));
 
-    let context = Arc::new(RwLock::new(MockExecutionContext {}));
-    let context_ev = Arc::clone(&context);
+    let context = Arc::new(Mutex::new(MockExecutionContext {
+        tx: tx_event.clone(),
+    }));
     let context_client = Arc::clone(&context);
+    let context_ev_client = Arc::clone(&context);
 
-    let ev_handle = spawn(|| event_thread(rx_register, rx_event, context_ev));
+    let ev_handle = spawn(|| event_thread(rx_register, rx_event));
 
     // Event listener client
 
@@ -39,7 +41,7 @@ fn simple_flow() {
             c_tx_event,
             c_id_counter,
             c_db,
-            Arc::clone(&context),
+            context_ev_client,
         )
     });
 
@@ -68,6 +70,8 @@ fn simple_flow() {
 
     drop(tx_event);
     drop(tx_register);
+    drop(context);
+
     assert_eq!(
         ev_handle.join().unwrap().unwrap_err(),
         MyError::EventChannelClosed
@@ -78,10 +82,6 @@ fn simple_flow() {
         MyError::EventChannelClosed
     );
 
-    //TODO: fix this
-    //event thread not receiving event
-    //before, commands on tables returned result and events vector
-    //now, tables send events directly to event thread via ExecutionContext
     assert_eq!(ev_client_tcp_mut.lock().unwrap().out, vec![32]);
     assert_eq!(client_tcp_mut.lock().unwrap().out, vec![33]);
 }
